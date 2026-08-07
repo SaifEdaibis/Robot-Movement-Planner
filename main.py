@@ -6,8 +6,8 @@ pygame.init()
 #--- Constants -------------------------------------------------------------------------
 
 # Screen Info
-SCREEN_WIDTH = 400              ### pixels
-SCREEN_HEIGHT = SCREEN_WIDTH
+SCREEN_WIDTH = 600              ### pixels
+SCREEN_HEIGHT = SCREEN_WIDTH * 0.8
 BACKGROUND_COLOR = (255, 255, 255)
 
 # Timing Info
@@ -19,11 +19,11 @@ GRID_COLOR = (0, 0, 0)
 GRID_LINE_WIDTH = 2             ### pixels
 
 # Robot Info
-BASE_JOINT = (200, 350)    ### pixels
+BASE_JOINT = (300, 350)         ### pixels
 
-STARTING_ANGLE_ONE = math.pi/2
-STARTING_ANGLE_TWO = math.pi/2
-STARTING_ANGLE_THREE = math.pi/2
+BASE_JOINT_ANGLE = math.pi/2
+SECOND_JOINT_ANGLE = math.pi/2
+THIRD_JOINT_ANGLE = math.pi/2
 
 STARTING_ARM_LENGTH_ONE = 100
 STARTING_ARM_LENGTH_TWO = 100
@@ -36,6 +36,21 @@ JOINT_RADIUS = 9
 INNER_JOINT_RADIUS = 5
 ARM_WIDTH = 7                  ### pixels
 
+# Angle Controller
+CONTROL_BACKGROUND_X = 20
+CONTROL_BACKGROUND_Y = 40
+BACKGROUND_WIDTH = 90
+BACKGROUND_HEIGHT = 300
+CONTROL_BACKGROUND_COLOR = (128,128,128)
+
+
+INNER_PANEL_X = 40
+INNER_PANEL_Y = 60
+INNER_PANEL_DIMENSIONS = 50
+INNER_PANEL_COLOR = (255,255,255)
+
+TEXT_COLOR = (0,0,0)
+
 
 #--- Robot -----------------------------------------------------------------------------------------
 
@@ -46,9 +61,9 @@ class Robot:
         self.base_joint =   BASE_JOINT
 
         self.joint_angles = [
-            STARTING_ANGLE_ONE,
-            STARTING_ANGLE_TWO,
-            STARTING_ANGLE_THREE,
+            BASE_JOINT_ANGLE,
+            SECOND_JOINT_ANGLE,
+            THIRD_JOINT_ANGLE,
         ]
 
         self.arm_lengths = [
@@ -63,10 +78,10 @@ class Robot:
 
         for joints in range(JOINT_NUMBERS):
             if joints == 0:
-                self.joints[joints] = (BASE_JOINT)
+                self.joints[joints] = (self.base_joint)
             else:
-                    self.joints[joints] = ((self.joints[joints-1][0] + math.cos(self.joint_angles[joints-1])*self.arm_lengths[joints-1], 
-                                            self.joints[joints-1][1]- math.sin(self.joint_angles[joints-1])*self.arm_lengths[joints-1]))
+                self.joints[joints] = ((self.joints[joints-1][0] + math.cos(self.joint_angles[joints-1])*self.arm_lengths[joints-1], 
+                                        self.joints[joints-1][1]- math.sin(self.joint_angles[joints-1])*self.arm_lengths[joints-1]))
 
     def draw_robot(self, screen):
 
@@ -77,11 +92,48 @@ class Robot:
             pygame.draw.circle(screen, JOINT_COLOR, self.joints[joint], JOINT_RADIUS, width = 0)
             pygame.draw.circle(screen, ARM_COLOR, self.joints[joint], INNER_JOINT_RADIUS, width = 0)
 
-    def move_robot(self, joint, angle):
-        self.joint_angles[joint] = angle
+    def change_angle(self, joint, angle):
+        self.joint_angles[joint] -= math.radians(angle)
 
         self.calculate_joint_pos()
 
+class Angle_Controller():
+    def __init__(self, robot):
+        self.angle_control_background = pygame.Rect(CONTROL_BACKGROUND_X, CONTROL_BACKGROUND_Y, BACKGROUND_WIDTH, BACKGROUND_HEIGHT)
+        
+        self.font = pygame.font.Font(None, 35)
+        self.angle_speed = 1
+
+        self.inner_panels = []
+        self.angle_labels = []
+
+        self.inner_panels.append(pygame.Rect(INNER_PANEL_X, INNER_PANEL_Y, INNER_PANEL_DIMENSIONS, INNER_PANEL_DIMENSIONS))
+
+        for i in range(3):
+            self.inner_panels.append(pygame.Rect(INNER_PANEL_X, INNER_PANEL_Y + 70*(i+1), INNER_PANEL_DIMENSIONS, INNER_PANEL_DIMENSIONS))
+            angle = int(math.degrees(robot.joint_angles[i]))
+            self.angle_labels.append(self.font.render(f"{angle}", True, TEXT_COLOR))
+
+
+
+    def draw_controller(self, screen, robot):
+        pygame.draw.rect(screen, CONTROL_BACKGROUND_COLOR , self.angle_control_background)
+
+        for i in range(4):
+            pygame.draw.rect(screen, INNER_PANEL_COLOR, self.inner_panels[i])
+
+            if i == 0:
+                self.speed_label = self.font.render(f"{self.angle_speed}", True, TEXT_COLOR)
+
+                center_x, center_y = self.inner_panels[i].center
+                screen.blit(self.speed_label, (center_x-12, center_y-12))
+            else:
+                angle = int(math.degrees(robot.joint_angles[i-1]))
+                self.angle_labels[i-1] = (self.font.render(f"{angle}", True, TEXT_COLOR))
+
+                
+                center_x, center_y = self.inner_panels[i].center
+                screen.blit(self.angle_labels[i-1], (center_x-12, center_y-12))
 
 #--- World -----------------------------------------------------------------------------------------
 
@@ -89,6 +141,7 @@ class Robot:
 class World:
     def __init__(self):
         self.robot = Robot()
+        self.angle_controller = Angle_Controller(self.robot)
 
 #--- Main Screen -----------------------------------------------------------------------------------------
 
@@ -121,6 +174,7 @@ class Front_Display:
 
     def draw_world(self, world):
         world.robot.draw_robot(self.screen)
+        world.angle_controller.draw_controller(self.screen, world.robot)
 
 #--- Application -----------------------------------------------------------------------------------------------
 
@@ -141,20 +195,24 @@ class Application:
             if event.type == pygame.QUIT:                      
                 self.run = False
 
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                    for num, panel in enumerate(self.world.angle_controller.inner_panels):
+                        if num == 0:
+                            if panel.collidepoint(event.pos):      
+                                if event.button == 1:
+                                    self.world.angle_controller.angle_speed += 1
+                                else:
+                                    self.world.angle_controller.angle_speed += -1
+                        else:
+                            if panel.collidepoint(event.pos):      
+                                if event.button == 1:
+                                    self.world.robot.change_angle(num-1, self.world.angle_controller.angle_speed)
+                                else:
+                                    self.world.robot.change_angle(num-1, -self.world.angle_controller.angle_speed)
+
     # The main_loop that draws and calls every repeated functions
     def main_loop(self):    
-        x = 0
         while self.run:
-
-            if x == 0:
-                Main.world.robot.move_robot(0, 1)
-                Main.world.robot.move_robot(1, 3)
-                Main.world.robot.move_robot(2, 0.5)
-                print(Main.world.robot.joints)
-            else:
-                pass
-
-            x += 1
             
             self.timing()
 
