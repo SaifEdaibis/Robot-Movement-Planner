@@ -7,7 +7,7 @@ pygame.init()
 
 # Screen Info
 SCREEN_WIDTH = 600              ### pixels
-SCREEN_HEIGHT = SCREEN_WIDTH * 0.8
+SCREEN_HEIGHT = SCREEN_WIDTH 
 BACKGROUND_COLOR = (255, 255, 255)
 
 # Timing Info
@@ -51,9 +51,78 @@ INNER_PANEL_COLOR = (255,255,255)
 
 TEXT_COLOR = (0,0,0)
 
-# Icons
+# Icons Info
 START_CIRCLE_COLOR = (128, 0, 0)
 END_CIRCLE_COLOR = (0, 100, 0)
+
+# Obstacle Info
+OBSTACLE_COLOR = (135, 206, 235)
+OBSTACLE_START_X = 180
+OBSTACLE_START_Y = 400
+OBSTACLE_DIMENSIONS = 50
+
+# Route Info
+RESOLUTION = 5
+
+#--- Obstacle --------------------------------------------------------------------------------------------------------------------------------------------
+
+#creates obstacles for the arm
+class Obstacle:
+    def __init__(self, num):
+        self.rect = pygame.Rect(
+            OBSTACLE_START_X + num * 100,
+            OBSTACLE_START_Y,
+            OBSTACLE_DIMENSIONS,
+            OBSTACLE_DIMENSIONS
+        )
+
+        self.selected_status = False
+
+    # draws the obstacle
+    def draw_obstacle(self, screen):
+        pygame.draw.rect(screen, OBSTACLE_COLOR , self.rect)
+
+    # checks if the obstacle is within the boundaries of the game
+    def boundary_check(self, x_change, y_change):       
+        if self.rect.left + x_change <= 0:
+            x_change = -self.rect.left
+
+        elif self.rect.right + x_change >= SCREEN_WIDTH:
+            x_change = SCREEN_WIDTH - self.rect.right 
+        
+        if self.rect.top + y_change <= 0:
+            y_change = -self.rect.top
+        
+        elif self.rect.bottom + y_change >= SCREEN_HEIGHT:
+            y_change = SCREEN_HEIGHT - self.rect.bottom
+
+        return x_change, y_change
+
+    # prevents overlap between the obstacles
+    def collision_check(self, world, x_change=0, y_change=0):
+
+        for obj in world.obstacles:
+            if obj is self:
+                continue
+
+            # --- check x movement on its own ---
+            x_rect = self.rect.move(x_change, 0)
+            if x_rect.colliderect(obj.rect):
+                if x_change > 0:
+                    x_change = min(x_change, obj.rect.left - self.rect.right)
+                elif x_change < 0:
+                    x_change = max(x_change, obj.rect.right - self.rect.left)
+
+            # --- check y movement on its own ---
+            y_rect = self.rect.move(0, y_change)
+            if y_rect.colliderect(obj.rect):
+                if y_change > 0:
+                    y_change = min(y_change, obj.rect.top - self.rect.bottom)
+                elif y_change < 0:
+                    y_change = max(y_change, obj.rect.bottom - self.rect.top)
+
+        return x_change, y_change    
+
 
 #--- Path Icons ------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -159,6 +228,21 @@ class Path_Planner:
         joint_angle_2 = relative_angle_2 - math.radians(180) + joint_angle_1
 
         return (joint_angle_1, joint_angle_2, theta_3)
+
+    def position_validifier(self, angle_1, angle_2, angle_3, robot, world):
+        self.test_joint_pos = robot.calculate_joint_pos(self, angle_1, angle_2, angle_3)
+
+        for joints in range(len(self.test_joint_pos) - 1):
+            for obstacle in world.obstacles:
+                self.collision = bool(obstacle.rect.clipline(self.test_joint_pos[joints],self.test_joint_pos[joints + 1]))
+
+                if self.collision:
+                    return True
+                else: 
+                    pass
+
+        return False
+
         
 
 #--- Robot -------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -194,24 +278,37 @@ class Robot:
             STARTING_ARM_LENGTH_THREE
         ]
 
-        self.calculate_joint_pos()
+        self.Set_Joint_pos(
+            self.calculate_joint_pos()
+        )
 
     # calculates where each joint is based on angle and arm length
-    def calculate_joint_pos(self):
+    def calculate_joint_pos(self, angle_1 = None, angle_2 = None, angle_3 = None):
+        self.temp_joints = [None] * len(self.joints)
+
+        if angle_1:
+            self.temp_joint_angles = [angle_1, angle_2, angle_3]
+        else:
+            self.temp_joint_angles = self.joint_angles
 
         for joints in range(len(self.joints)):
             if joints == 0:
 
-                self.joints[joints] = (self.base_joint)
+                self.temp_joints[joints] = (self.base_joint)
             else:
 
-                self.joints[joints] = ((
-                    self.joints[joints-1][0] 
-                    + math.cos(self.joint_angles[joints-1])*self.arm_lengths[joints-1], 
+                self.temp_joints[joints] = ((
+                    self.temp_joints[joints-1][0] 
+                    + math.cos(self.temp_joint_angles[joints-1])*self.arm_lengths[joints-1], 
 
-                    self.joints[joints-1][1] 
-                    - math.sin(self.joint_angles[joints-1])*self.arm_lengths[joints-1]
+                    self.temp_joints[joints-1][1] 
+                    - math.sin(self.temp_joint_angles[joints-1])*self.arm_lengths[joints-1]
                 ))
+
+        return self.temp_joints
+
+    def Set_Joint_pos(self, joints):
+        self.joints = joints
 
     #draws the arms and joints of the robot
     def draw_robot(self, screen):
@@ -274,7 +371,9 @@ class Robot:
                 self.joint_angles[joints] = math.radians(math.degrees(self.relative_angles[joints]) - (180 - math.degrees(self.joint_angles[joints-1])))
 
         # calculates new joint positions
-        self.calculate_joint_pos()
+        self.Set_Joint_pos(
+            self.calculate_joint_pos()
+        )
 
     # sets all 3 angles for the arm practically teleporting it 
     def Set_Angles(self, angle_1, angle_2, angle_3):
@@ -288,10 +387,12 @@ class Robot:
             else:
                 self.relative_angles[i] = math.radians((180 - math.degrees(self.joint_angles[i-1])) + math.degrees(self.joint_angles[i]))
 
-        self.calculate_joint_pos()
+        self.Set_Joint_pos(
+            self.calculate_joint_pos()
+        )
 
     # calculates all the angles between the start and end position creating a route for the arm
-    def Route_Taker(self, new_1, new_2, new_3, display, world):
+    def Route_Taker(self, new_1, new_2, new_3, display, world, planner):
         new = [new_1, new_2, new_3]
 
         # stores all the angles for each joint
@@ -301,12 +402,27 @@ class Robot:
             2: []
         }
 
-        for i in range(len(self.joint_angles)):
-            diff = (new[i] - self.joint_angles[i]) / 10
-            angle_dictionary[i].append(self.joint_angles[i])
-            for l in range(10):
+        diff_list = []
+        for i in range(len(new)):
+            diff_list.append((new[i] - self.joint_angles[i])/10)
 
-                angle_dictionary[i].append(self.joint_angles[i] + diff * (l+1))
+        for l in range(11):
+            candidate_list = []
+
+            for i in range(len(new)):
+                candidate_list.append(self.joint_angles[i] + diff_list[i] * (l))
+
+            for i in range(3):
+                                angle_dictionary[i].append(candidate_list[i])
+
+        """
+            collision = planner.position_validifier(
+                                candidate_list[0],
+                                candidate_list[1],
+                                candidate_list[2],
+                                world.robot,
+                                world
+                            )"""
 
         return angle_dictionary
                         
@@ -397,6 +513,10 @@ class World:
         self.angle_controller = Angle_Controller(self.robot)
         self.icons = Path_Icons()
 
+        self.obstacles = []
+        for i in range(3):
+            self.obstacles.append(Obstacle(i))
+
 #--- Main Screen ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Owns the screen and display and all associated functions
@@ -465,6 +585,9 @@ class Front_Display:
         world.angle_controller.update_labels(world.robot)
         world.angle_controller.draw_controller(self.screen, world.robot)
 
+        for i in range(3):
+            world.obstacles[i].draw_obstacle(self.screen)
+
 
 #--- Application ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -491,8 +614,14 @@ class Application:
             if event.type == pygame.QUIT:                      
                 self.run = False
 
-            #allows the user to change the angle in each joint
+            #processes user clicks
             if event.type == pygame.MOUSEBUTTONDOWN:
+
+                #allows user to select obstacles
+                if event.button == 1:
+                    for item in self.world.obstacles:
+                        if item.rect.collidepoint(event.pos):
+                            item.selected_status = True
 
                 #cursor can not be on the angle controller
                 if self.world.angle_controller.angle_control_background.collidepoint(event.pos):
@@ -515,7 +644,7 @@ class Application:
                             new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot)
                             self.world.robot.Set_Angles(old_1, old_2, old_3)
 
-                            self.path_dictionary = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world)
+                            self.path_dictionary = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
 
                     
                 for num, panel in enumerate(self.world.angle_controller.inner_panels):
@@ -535,6 +664,25 @@ class Application:
                                 self.world.robot.change_angle(num-1, self.world.angle_controller.angle_speed)
                             else:
                                 self.world.robot.change_angle(num-1, -self.world.angle_controller.angle_speed)
+
+            # processses the movement of obstacles
+            if event.type == pygame.MOUSEMOTION:            
+                for item in self.world.obstacles:
+                    if item.selected_status == True:
+                        x_change, y_change = event.rel
+
+                        x_change, y_change = item.boundary_check(x_change, y_change)
+
+                        x_change, y_change = item.collision_check(self.world, x_change, y_change)
+
+                        item.rect.move_ip(x_change, y_change)
+
+            # processess obstacle release
+            for item in self.world.obstacles:                        
+                if item.selected_status == True:
+                    if event.type == pygame.MOUSEBUTTONUP:
+                        if event.button == 1:
+                            item.selected_status = False
 
     # The main_loop that draws and calls every repeated functions
     def main_loop(self):    
