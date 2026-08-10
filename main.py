@@ -52,7 +52,6 @@ INNER_PANEL_COLOR = (255,255,255)
 TEXT_COLOR = (0,0,0)
 
 # Icons
-
 START_CIRCLE_COLOR = (128, 0, 0)
 END_CIRCLE_COLOR = (0, 100, 0)
 
@@ -61,11 +60,15 @@ END_CIRCLE_COLOR = (0, 100, 0)
 class Path_Icons:
     def __init__(self):
 
-        ###self.start_pos = None
+        # red start icon position
+        self.start_pos = None
+
+        # green end icon position
         self.end_pos = None
 
     def draw_icons(self, screen):
-        """
+
+        # draws the red start icon
         if self.start_pos:
             pygame.draw.circle(
                             screen,
@@ -74,8 +77,8 @@ class Path_Icons:
                             JOINT_RADIUS,
                             width = 0
                         )
-        """
 
+        # draws the green end icon
         if self.end_pos:
             pygame.draw.circle(
                                     screen,
@@ -87,22 +90,47 @@ class Path_Icons:
 
 #--- Path Planner -----------------------------------------------------------------------------------------------------------------------------------------
 
+# This class detrmines the angles necescary to go from the start to end positions
 class Path_Planner:
     def __init__(self):
         pass
 
-    def final_positions(self, end_pos, robot):
-        final_x, final_y = end_pos
-        theta_3 = math.pi/4
+    
+    def final_angles(self, end_pos, robot):
 
-        final_x = final_x - math.cos(theta_3) * robot.arm_lengths[-1]
-        final_y = final_y + math.sin(theta_3) * robot.arm_lengths[-1]
+        # stands for hypotenuse, this is the distance between the base and the 3rd joint. This cannot exceed 200 or the program will crash
+        hypo = 250
 
-        start_x, start_y = BASE_JOINT
+        # how many times my program has tried to get a sutable angle
+        tries = 1
 
-        delta_x = final_x - start_x
-        delta_y = final_y - start_y
+        # this program picks a angle for the third joint to allow for the callculation of the other two. It also ensures the 3rd joint is within 200 pixels to prevent a program crash
+        while hypo >= 200:
 
+            #the target position
+            final_x, final_y = end_pos
+
+            # the angle for the third joint
+            theta_3 = math.pi * ((1/32) * tries)
+
+            #the positions of the third joint
+            final_x = final_x - math.cos(theta_3) * robot.arm_lengths[-1]
+            final_y = final_y + math.sin(theta_3) * robot.arm_lengths[-1]
+
+            start_x, start_y = BASE_JOINT
+
+            #the differinces between the base joint and third joint. CANNOT EXCEED 200
+            delta_x = final_x - start_x
+            delta_y = final_y - start_y
+
+            tries += 1
+            hypo = math.sqrt((delta_x ** 2) + (delta_y ** 2))
+
+            # stops the loop if the arm goes all the way around
+            if tries > 64:
+                return
+        
+        #the angle between the first and second arm which is the relative_angle for the second joint
         inside_angle_b = math.acos(
                                 ((delta_x ** 2) 
                                 + (delta_y ** 2)
@@ -111,8 +139,10 @@ class Path_Planner:
                                 / (-2 * robot.arm_lengths[0] * robot.arm_lengths[1])
                            )
 
+        # relative angle for the sceond joint
         relative_angle_2 = inside_angle_b
 
+        # the angle between the first arm and the hypotnuse created from the base joint to the third joint
         inside_angle_a = math.acos(
                                         ( (robot.arm_lengths[1] ** 2)
                                         - (delta_x ** 2) 
@@ -121,8 +151,10 @@ class Path_Planner:
                                         / (-2 * robot.arm_lengths[0] * math.sqrt((delta_x **2)+ (delta_y ** 2)))
                                    )
 
+        # the angle between the hypotnuse created from the base joint to the third joint and the x axis
         base_angle_a = math.atan2(-delta_y,delta_x)
 
+        # the joint angles for the first two joints
         joint_angle_1 = inside_angle_a + base_angle_a
         joint_angle_2 = relative_angle_2 - math.radians(180) + joint_angle_1
 
@@ -244,6 +276,7 @@ class Robot:
         # calculates new joint positions
         self.calculate_joint_pos()
 
+    # sets all 3 angles for the arm practically teleporting it 
     def Set_Angles(self, angle_1, angle_2, angle_3):
         new_angles = [angle_1, angle_2, angle_3]
 
@@ -256,6 +289,26 @@ class Robot:
                 self.relative_angles[i] = math.radians((180 - math.degrees(self.joint_angles[i-1])) + math.degrees(self.joint_angles[i]))
 
         self.calculate_joint_pos()
+
+    # calculates all the angles between the start and end position creating a route for the arm
+    def Route_Taker(self, new_1, new_2, new_3, display, world):
+        new = [new_1, new_2, new_3]
+
+        # stores all the angles for each joint
+        angle_dictionary = {
+            0: [],
+            1: [],
+            2: []
+        }
+
+        for i in range(len(self.joint_angles)):
+            diff = (new[i] - self.joint_angles[i]) / 10
+            angle_dictionary[i].append(self.joint_angles[i])
+            for l in range(10):
+
+                angle_dictionary[i].append(self.joint_angles[i] + diff * (l+1))
+
+        return angle_dictionary
                         
 #--- Controller --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -422,6 +475,8 @@ class Application:
         self.world = World()
         self.run = True
         self.planner = Path_Planner()
+        self.path_dictionary = None
+        self.counter = 0
 
     # Controls the framerate of the program
     def timing(self):
@@ -439,19 +494,28 @@ class Application:
             #allows the user to change the angle in each joint
             if event.type == pygame.MOUSEBUTTONDOWN:
 
+                #cursor can not be on the angle controller
                 if self.world.angle_controller.angle_control_background.collidepoint(event.pos):
                     pass
+
                 else:
+                    #left click places a start position
                     if event.button == 1:
                         self.world.icons.start_pos = event.pos
                         self.world.icons.end_pos = None
+
+                    # right click places an end position
                     else:
                         if self.world.icons.end_pos == None:
-                            self.world.icons.end_pos = event.pos    
+                            self.world.icons.end_pos = event.pos  
+                        # another right click begins the movement of the arm  
                         else:
-                            angle_1, angle_2, angle_3 = self.planner.final_positions(self.world.icons.end_pos, self.world.robot)
-                            self.world.robot.Set_Angles(angle_1, angle_2, angle_3)
-                            self.world.icons.end_pos = None
+                            old_1, old_2, old_3 = self.planner.final_angles(self.world.icons.start_pos, self.world.robot)
+
+                            new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot)
+                            self.world.robot.Set_Angles(old_1, old_2, old_3)
+
+                            self.path_dictionary = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world)
 
                     
                 for num, panel in enumerate(self.world.angle_controller.inner_panels):
@@ -485,7 +549,22 @@ class Application:
             self.display_front.draw_grid()
 
             self.display_front.draw_world(self.world)
-    
+
+            if self.path_dictionary:
+                self.world.robot.Set_Angles(
+                    self.path_dictionary[0][self.counter],
+                    self.path_dictionary[1][self.counter],
+                    self.path_dictionary[2][self.counter],
+                    )
+
+                if self.counter == 10:
+                    self.path_dictionary = None
+                    self.counter = 0
+                else:
+                    self.counter += 1
+                pygame.time.delay(200)
+            
+                
             pygame.display.update()
             
 
