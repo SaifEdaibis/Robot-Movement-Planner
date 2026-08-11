@@ -1,5 +1,6 @@
 import pygame
 import math
+import heapq
 
 pygame.init()
 
@@ -62,7 +63,37 @@ OBSTACLE_START_Y = 400
 OBSTACLE_DIMENSIONS = 50
 
 # Route Info
-RESOLUTION = 5
+RESOLUTION = 3
+#--- Cost Helper Function --------------------------------------------------------------------------------------------------------------------------------------
+
+def node_cost_check(node, final_node):
+
+    distance = math.sqrt(
+        ((final_node[0] - node[0]) **2)
+        + ((final_node[1] - node[1]) **2)
+        + ((final_node[2] - node[2]) **2)
+    )
+
+    return distance
+
+
+#--- Node Neighbor Helper Function ----------------------------------------------------------------------------------------------------------------------------------
+
+def node_neighbor(node_tuple, planner, robot, world):
+    node_options_list = []
+
+    key = {
+        0: [1, -1, 0, 0, 0, 0],
+        1: [0, 0, 1, -1, 0, 0],
+        2: [0, 0, 0, 0, 1, -1],
+    }
+
+    for i in range(6):
+            test_tuple = (node_tuple[0] + 1 * key[0][i], node_tuple[1] + 1 * key[1][i], node_tuple[2] + 1 * key[2][i])
+            if  test_tuple not in planner.closed_set and all(5 / RESOLUTION <= x <= 355 / RESOLUTION for x in test_tuple) and planner.position_validifier(test_tuple, robot, world):
+                node_options_list.append(test_tuple)
+    return node_options_list
+
 
 #--- Obstacle --------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -162,7 +193,8 @@ class Path_Icons:
 # This class detrmines the angles necescary to go from the start to end positions
 class Path_Planner:
     def __init__(self):
-        pass
+        self.node_dictionary = {}
+        self.closed_set = set()
 
     
     def final_angles(self, end_pos, robot):
@@ -229,19 +261,32 @@ class Path_Planner:
 
         return (joint_angle_1, joint_angle_2, theta_3)
 
-    def position_validifier(self, angle_1, angle_2, angle_3, robot, world):
-        self.test_joint_pos = robot.calculate_joint_pos(self, angle_1, angle_2, angle_3)
+    def position_validifier(self, node_tuple, robot, world):
+        i, j, k = node_tuple
 
-        for joints in range(len(self.test_joint_pos) - 1):
-            for obstacle in world.obstacles:
-                self.collision = bool(obstacle.rect.clipline(self.test_joint_pos[joints],self.test_joint_pos[joints + 1]))
+        if (i, j, k) in self.node_dictionary:
+            if self.node_dictionary[(i, j, k)] == True:
+                return True
+            else:
+                return False
+        else:
+            angle_1 = math.radians(i * RESOLUTION)
+            angle_2 = math.radians(j * RESOLUTION)
+            angle_3 = math.radians(k * RESOLUTION)
 
-                if self.collision:
-                    return True
-                else: 
-                    pass
+            self.test_joint_pos = robot.calculate_joint_pos(angle_1, angle_2, angle_3)
+            for joints in range(len(self.test_joint_pos) - 1):
+                for obstacle in world.obstacles:
+                    self.collision = bool(obstacle.rect.clipline(self.test_joint_pos[joints],self.test_joint_pos[joints + 1]))
 
-        return False
+                    if self.collision:
+                        self.node_dictionary[(i, j, k)] = False
+                        return False
+                    else: 
+                        pass
+
+        self.node_dictionary[(i, j, k)] = True
+        return True
 
         
 
@@ -286,7 +331,7 @@ class Robot:
     def calculate_joint_pos(self, angle_1 = None, angle_2 = None, angle_3 = None):
         self.temp_joints = [None] * len(self.joints)
 
-        if angle_1:
+        if angle_1 is not None:
             self.temp_joint_angles = [angle_1, angle_2, angle_3]
         else:
             self.temp_joint_angles = self.joint_angles
@@ -351,7 +396,7 @@ class Robot:
         self.test_joint_angle = self.joint_angles[joint] - math.radians(angle)
         self.text_relative_angle = (180 - math.degrees(self.joint_angles[joint-1])) + math.degrees(self.test_joint_angle)
 
-        if self.text_relative_angle < 10 or self.text_relative_angle > 350:
+        if self.text_relative_angle < 5 or self.text_relative_angle > 355:
             return
 
         # changes joint angle
@@ -395,36 +440,70 @@ class Robot:
     def Route_Taker(self, new_1, new_2, new_3, display, world, planner):
         new = [new_1, new_2, new_3]
 
-        # stores all the angles for each joint
-        angle_dictionary = {
-            0: [],
-            1: [],
-            2: []
+        self.start_tuple = (
+            round(math.degrees(self.joint_angles[0]) / RESOLUTION),
+            round(math.degrees(self.joint_angles[1]) / RESOLUTION),
+            round(math.degrees(self.joint_angles[2]) / RESOLUTION)
+        )
+
+        self.end_tuple = (
+            round(math.degrees(new_1) / RESOLUTION),
+            round(math.degrees(new_2) / RESOLUTION),
+            round(math.degrees(new_3) / RESOLUTION)
+        )
+
+        print("start:", self.start_tuple, "end:", self.end_tuple)
+
+        self.option_dictionary = {
+
         }
 
-        diff_list = []
-        for i in range(len(new)):
-            diff_list.append((new[i] - self.joint_angles[i])/10)
+        self.G_value_dictionary = {
 
-        for l in range(11):
-            candidate_list = []
+        }
 
-            for i in range(len(new)):
-                candidate_list.append(self.joint_angles[i] + diff_list[i] * (l))
+        self.G_value_dictionary[self.start_tuple] = []
+        open_heap = []
+        start_f = node_cost_check(self.start_tuple, self.end_tuple) + len(self.G_value_dictionary[self.start_tuple])
+        heapq.heappush(open_heap, (start_f, self.start_tuple))
+        
+        if not all(5/RESOLUTION <= x <= 355/RESOLUTION for x in self.end_tuple):
+            return None  # goal is outside the valid joint-angle range entirely
 
-            for i in range(3):
-                                angle_dictionary[i].append(candidate_list[i])
+        while True:
+            current_f, self.current_node = heapq.heappop(open_heap)
 
-        """
-            collision = planner.position_validifier(
-                                candidate_list[0],
-                                candidate_list[1],
-                                candidate_list[2],
-                                world.robot,
-                                world
-                            )"""
+            if self.current_node in planner.closed_set:
+                continue
 
-        return angle_dictionary
+            if self.current_node == self.end_tuple:
+                break
+            
+            options = node_neighbor(self.current_node, planner, world.robot, world)
+            for option in range(len(options)):
+                if options[option] not in self.G_value_dictionary:
+                    self.G_value_dictionary[options[option]] = []
+                    self.G_value_dictionary[options[option]].extend(self.G_value_dictionary[self.current_node])
+                    self.G_value_dictionary[options[option]].append(self.current_node)
+                else:
+                    test_list = []
+                    test_list.extend(self.G_value_dictionary[self.current_node])
+                    test_list.append(self.current_node)
+
+                    if len(test_list) < len(self.G_value_dictionary[options[option]]):
+                        self.G_value_dictionary[options[option]] = test_list
+                    else:
+                        pass
+
+                new_f = node_cost_check(options[option], self.end_tuple) + len(self.G_value_dictionary[options[option]])
+                heapq.heappush(open_heap, (new_f, options[option]))
+
+            planner.closed_set.add(self.current_node)
+
+        self.G_value_dictionary[self.end_tuple].append(self.end_tuple)
+        angle_list = self.G_value_dictionary[self.end_tuple]
+        
+        return angle_list
                         
 #--- Controller --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -598,7 +677,7 @@ class Application:
         self.world = World()
         self.run = True
         self.planner = Path_Planner()
-        self.path_dictionary = None
+        self.path_list = None
         self.counter = 0
 
     # Controls the framerate of the program
@@ -644,7 +723,7 @@ class Application:
                             new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot)
                             self.world.robot.Set_Angles(old_1, old_2, old_3)
 
-                            self.path_dictionary = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
+                            self.path_list = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
 
                     
                 for num, panel in enumerate(self.world.angle_controller.inner_panels):
@@ -698,19 +777,18 @@ class Application:
 
             self.display_front.draw_world(self.world)
 
-            if self.path_dictionary:
-                self.world.robot.Set_Angles(
-                    self.path_dictionary[0][self.counter],
-                    self.path_dictionary[1][self.counter],
-                    self.path_dictionary[2][self.counter],
-                    )
-
-                if self.counter == 10:
-                    self.path_dictionary = None
+            if self.path_list:
+                if self.counter == len(self.path_list):
+                    self.path_list = None
                     self.counter = 0
                 else:
+                    self.world.robot.Set_Angles(
+                        angle_1  = math.radians(self.path_list[self.counter][0] * RESOLUTION),
+                        angle_2  = math.radians(self.path_list[self.counter][1] * RESOLUTION),
+                        angle_3  = math.radians(self.path_list[self.counter][2] * RESOLUTION)
+                    )
                     self.counter += 1
-                pygame.time.delay(200)
+                    pygame.time.delay(50)
             
                 
             pygame.display.update()
