@@ -8,7 +8,7 @@ pygame.init()
 
 # Screen Info
 SCREEN_WIDTH = 600              ### pixels
-SCREEN_HEIGHT = SCREEN_WIDTH 
+SCREEN_HEIGHT = 600
 BACKGROUND_COLOR = (255, 255, 255)
 
 # Timing Info
@@ -63,9 +63,24 @@ OBSTACLE_START_Y = 400
 OBSTACLE_DIMENSIONS = 50
 
 # Route Info
-RESOLUTION = 3
-#--- Cost Helper Function --------------------------------------------------------------------------------------------------------------------------------------
+RESOLUTION = 5
+COLLISION_PADDING = ARM_WIDTH
+JOINT_COLLISION_PADDING = JOINT_RADIUS * 2
+WEIGHT = 1.5
 
+#--- Helper functions-----------------------------------------------------------------------------------------------------------------------------------------
+
+def relative_angles_from_tuple(node_tuple):
+    i, j, k = [x * RESOLUTION for x in node_tuple]
+    rel_2 = (180 - i) + j
+    rel_3 = (180 - j) + k
+    return rel_2 % 360, rel_3 % 360
+
+# converts degrees into node values
+def norm_deg(rad):
+    return round(math.degrees(rad) % 360)
+
+# checks the distance between the node and the final node to help determine the cost
 def node_cost_check(node, final_node):
 
     distance = math.sqrt(
@@ -76,9 +91,7 @@ def node_cost_check(node, final_node):
 
     return distance
 
-
-#--- Node Neighbor Helper Function ----------------------------------------------------------------------------------------------------------------------------------
-
+# determines the neighboring nodes and sets them as possible options
 def node_neighbor(node_tuple, planner, robot, world):
     node_options_list = []
 
@@ -89,8 +102,13 @@ def node_neighbor(node_tuple, planner, robot, world):
     }
 
     for i in range(6):
-            test_tuple = (node_tuple[0] + 1 * key[0][i], node_tuple[1] + 1 * key[1][i], node_tuple[2] + 1 * key[2][i])
-            if  test_tuple not in planner.closed_set and all(5 / RESOLUTION <= x <= 355 / RESOLUTION for x in test_tuple) and planner.position_validifier(test_tuple, robot, world):
+            test_tuple = (node_tuple[0] + key[0][i], node_tuple[1] + key[1][i], node_tuple[2] + key[2][i])
+            if  test_tuple in planner.closed_set:
+                continue
+            rel_2, rel_3 = relative_angles_from_tuple(test_tuple)
+            if not (5 <= rel_2 <= 355 and 5 <= rel_3 <= 355):
+                continue
+            if planner.position_validifier(test_tuple, robot, world):
                 node_options_list.append(test_tuple)
     return node_options_list
 
@@ -197,7 +215,7 @@ class Path_Planner:
         self.closed_set = set()
 
     
-    def final_angles(self, end_pos, robot):
+    def final_angles(self, end_pos, robot, elbow_sign):
 
         # stands for hypotenuse, this is the distance between the base and the 3rd joint. This cannot exceed 200 or the program will crash
         hypo = 250
@@ -232,7 +250,7 @@ class Path_Planner:
                 return
         
         #the angle between the first and second arm which is the relative_angle for the second joint
-        inside_angle_b = math.acos(
+        inside_angle_b = elbow_sign * math.acos(
                                 ((delta_x ** 2) 
                                 + (delta_y ** 2)
                                 - (robot.arm_lengths[0] ** 2)
@@ -244,7 +262,7 @@ class Path_Planner:
         relative_angle_2 = inside_angle_b
 
         # the angle between the first arm and the hypotnuse created from the base joint to the third joint
-        inside_angle_a = math.acos(
+        inside_angle_a = elbow_sign * math.acos(
                                         ( (robot.arm_lengths[1] ** 2)
                                         - (delta_x ** 2) 
                                         - (delta_y ** 2)
@@ -265,25 +283,28 @@ class Path_Planner:
         i, j, k = node_tuple
 
         if (i, j, k) in self.node_dictionary:
-            if self.node_dictionary[(i, j, k)] == True:
-                return True
-            else:
-                return False
-        else:
-            angle_1 = math.radians(i * RESOLUTION)
-            angle_2 = math.radians(j * RESOLUTION)
-            angle_3 = math.radians(k * RESOLUTION)
+            return self.node_dictionary[(i, j, k)]
+        
+        angle_1 = math.radians(i * RESOLUTION)
+        angle_2 = math.radians(j * RESOLUTION)
+        angle_3 = math.radians(k * RESOLUTION)
+        self.test_joint_pos = robot.calculate_joint_pos(angle_1, angle_2, angle_3)
 
-            self.test_joint_pos = robot.calculate_joint_pos(angle_1, angle_2, angle_3)
-            for joints in range(len(self.test_joint_pos) - 1):
-                for obstacle in world.obstacles:
-                    self.collision = bool(obstacle.rect.clipline(self.test_joint_pos[joints],self.test_joint_pos[joints + 1]))
+        for obstacle in world.obstacles:
 
-                    if self.collision:
-                        self.node_dictionary[(i, j, k)] = False
-                        return False
-                    else: 
-                        pass
+            for joint_pos in self.test_joint_pos:
+                padded_rect = obstacle.rect.inflate(JOINT_COLLISION_PADDING, JOINT_COLLISION_PADDING)
+                if padded_rect.collidepoint(joint_pos):
+                    self.node_dictionary[(i, j, k)] = False
+                    return False
+
+            for arm in range(len(self.test_joint_pos) - 1):
+                padded_rect = obstacle.rect.inflate(COLLISION_PADDING, COLLISION_PADDING)
+                self.collision = bool(obstacle.rect.clipline(self.test_joint_pos[arm],self.test_joint_pos[arm + 1]))
+
+                if self.collision:
+                    self.node_dictionary[(i, j, k)] = False
+                    return False
 
         self.node_dictionary[(i, j, k)] = True
         return True
@@ -393,11 +414,13 @@ class Robot:
     def change_angle(self, joint, angle):
 
         # limits arms from getting within 10 degrees of an another arm
-        self.test_joint_angle = self.joint_angles[joint] - math.radians(angle)
-        self.text_relative_angle = (180 - math.degrees(self.joint_angles[joint-1])) + math.degrees(self.test_joint_angle)
-
-        if self.text_relative_angle < 5 or self.text_relative_angle > 355:
-            return
+        if joint == 0:
+            pass
+        else:
+            self.test_joint_angle = self.joint_angles[joint] - math.radians(angle)
+            self.text_relative_angle = (180 - math.degrees(self.joint_angles[joint-1])) + math.degrees(self.test_joint_angle)
+            if self.text_relative_angle < 5 or self.text_relative_angle > 355:
+                return
 
         # changes joint angle
         self.joint_angles[joint] -= math.radians(angle)
@@ -438,39 +461,39 @@ class Robot:
 
     # calculates all the angles between the start and end position creating a route for the arm
     def Route_Taker(self, new_1, new_2, new_3, display, world, planner):
+
         new = [new_1, new_2, new_3]
+        planner.node_dictionary = {}
+        planner.closed_set = set() 
 
         self.start_tuple = (
-            round(math.degrees(self.joint_angles[0]) / RESOLUTION),
-            round(math.degrees(self.joint_angles[1]) / RESOLUTION),
-            round(math.degrees(self.joint_angles[2]) / RESOLUTION)
+            norm_deg(self.joint_angles[0]) // RESOLUTION,
+            norm_deg(self.joint_angles[1]) // RESOLUTION,
+            norm_deg(self.joint_angles[2]) // RESOLUTION
         )
 
         self.end_tuple = (
-            round(math.degrees(new_1) / RESOLUTION),
-            round(math.degrees(new_2) / RESOLUTION),
-            round(math.degrees(new_3) / RESOLUTION)
+            norm_deg(new_1) // RESOLUTION,
+            norm_deg(new_2) // RESOLUTION,
+            norm_deg(new_3) // RESOLUTION
         )
 
         print("start:", self.start_tuple, "end:", self.end_tuple)
 
-        self.option_dictionary = {
+        self.G_value_dictionary = {}    
+        self.came_from = {}
 
-        }
-
-        self.G_value_dictionary = {
-
-        }
-
-        self.G_value_dictionary[self.start_tuple] = []
+        self.G_value_dictionary = {self.start_tuple: 0}
         open_heap = []
-        start_f = node_cost_check(self.start_tuple, self.end_tuple) + len(self.G_value_dictionary[self.start_tuple])
+        start_f = node_cost_check(self.start_tuple, self.end_tuple) * WEIGHT 
         heapq.heappush(open_heap, (start_f, self.start_tuple))
-        
-        if not all(5/RESOLUTION <= x <= 355/RESOLUTION for x in self.end_tuple):
-            return None  # goal is outside the valid joint-angle range entirely
-
+        it = 0
         while True:
+            it += 1
+            if not open_heap:
+                        print(f"No route found after {it} tries")
+                        return None
+
             current_f, self.current_node = heapq.heappop(open_heap)
 
             if self.current_node in planner.closed_set:
@@ -478,32 +501,26 @@ class Robot:
 
             if self.current_node == self.end_tuple:
                 break
+
+            planner.closed_set.add(self.current_node)
+            tentative_g = self.G_value_dictionary[self.current_node] + 1
             
             options = node_neighbor(self.current_node, planner, world.robot, world)
             for option in range(len(options)):
-                if options[option] not in self.G_value_dictionary:
-                    self.G_value_dictionary[options[option]] = []
-                    self.G_value_dictionary[options[option]].extend(self.G_value_dictionary[self.current_node])
-                    self.G_value_dictionary[options[option]].append(self.current_node)
-                else:
-                    test_list = []
-                    test_list.extend(self.G_value_dictionary[self.current_node])
-                    test_list.append(self.current_node)
+                if options[option] not in self.G_value_dictionary or tentative_g < self.G_value_dictionary[options[option]]:
+                    self.G_value_dictionary[options[option]] = tentative_g
+                    self.came_from[options[option]] = self.current_node
+                    new_f = node_cost_check(options[option], self.end_tuple) * WEIGHT + self.G_value_dictionary[options[option]]
+                    heapq.heappush(open_heap, (new_f, options[option]))
 
-                    if len(test_list) < len(self.G_value_dictionary[options[option]]):
-                        self.G_value_dictionary[options[option]] = test_list
-                    else:
-                        pass
-
-                new_f = node_cost_check(options[option], self.end_tuple) + len(self.G_value_dictionary[options[option]])
-                heapq.heappush(open_heap, (new_f, options[option]))
-
-            planner.closed_set.add(self.current_node)
-
-        self.G_value_dictionary[self.end_tuple].append(self.end_tuple)
-        angle_list = self.G_value_dictionary[self.end_tuple]
+        path_angles = [self.end_tuple]
+        node = self.end_tuple
+        while node != self.start_tuple:
+            node = self.came_from[node]
+            path_angles.append(node)
+        path_angles.reverse()
         
-        return angle_list
+        return path_angles
                         
 #--- Controller --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -718,12 +735,17 @@ class Application:
                             self.world.icons.end_pos = event.pos  
                         # another right click begins the movement of the arm  
                         else:
-                            old_1, old_2, old_3 = self.planner.final_angles(self.world.icons.start_pos, self.world.robot)
+                            old_1, old_2, old_3 = self.planner.final_angles(self.world.icons.start_pos, self.world.robot, elbow_sign= 1)
 
-                            new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot)
+                            new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, elbow_sign=1)
                             self.world.robot.Set_Angles(old_1, old_2, old_3)
-
                             self.path_list = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
+
+                            if self.path_list is None:
+                                new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, elbow_sign=-1)
+                                self.world.robot.Set_Angles(old_1, old_2, old_3)
+                                self.path_list = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
+                                
 
                     
                 for num, panel in enumerate(self.world.angle_controller.inner_panels):
@@ -788,7 +810,7 @@ class Application:
                         angle_3  = math.radians(self.path_list[self.counter][2] * RESOLUTION)
                     )
                     self.counter += 1
-                    pygame.time.delay(50)
+                    pygame.time.delay(20)
             
                 
             pygame.display.update()
