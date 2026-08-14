@@ -3,68 +3,7 @@ import pygame
 import heapq
 
 from robot import norm_deg
-
-# Screen Info
-SCREEN_WIDTH = 600              ### pixels
-SCREEN_HEIGHT = 600
-BACKGROUND_COLOR = (255, 255, 255)
-
-# Timing Info
-FRAMERATE = 60
-
-# Grid Info
-GRID_DIMENSION = 40             ### pixels
-GRID_COLOR = (0, 0, 0)
-GRID_LINE_WIDTH = 2             ### pixels
-
-# Robot Info
-BASE_JOINT = (300, 350)         ### pixels
-
-BASE_JOINT_ANGLE = math.pi/2
-SECOND_JOINT_ANGLE = math.pi/2
-THIRD_JOINT_ANGLE = math.pi/2
-
-STARTING_ARM_LENGTH_ONE = 100
-STARTING_ARM_LENGTH_TWO = 100
-STARTING_ARM_LENGTH_THREE = 100
-
-JOINT_NUMBERS = 4
-ARM_COLOR = (0, 0, 0)
-JOINT_COLOR = (212, 175, 55)
-JOINT_RADIUS = 9
-INNER_JOINT_RADIUS = 5
-ARM_WIDTH = 7                  ### pixels
-
-# Angle Controller
-CONTROL_BACKGROUND_X = 20
-CONTROL_BACKGROUND_Y = 40
-BACKGROUND_WIDTH = 90
-BACKGROUND_HEIGHT = 300
-CONTROL_BACKGROUND_COLOR = (128,128,128)
-
-ANGLE_DISPLAY_PANEL_NUMBER = 3
-INNER_PANEL_X = 40
-INNER_PANEL_Y = 60
-INNER_PANEL_DIMENSIONS = 50
-INNER_PANEL_COLOR = (255,255,255)
-
-TEXT_COLOR = (0,0,0)
-
-# Icons Info
-START_CIRCLE_COLOR = (128, 0, 0)
-END_CIRCLE_COLOR = (0, 100, 0)
-
-# Obstacle Info
-OBSTACLE_COLOR = (135, 206, 235)
-OBSTACLE_START_X = 180
-OBSTACLE_START_Y = 400
-OBSTACLE_DIMENSIONS = 50
-
-# Route Info
-RESOLUTION = 5
-COLLISION_PADDING = ARM_WIDTH
-JOINT_COLLISION_PADDING = JOINT_RADIUS * 2
-WEIGHT = 1.5
+import settings
 
 #--- Path Planner -----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -86,7 +25,7 @@ class Path_Planner:
             
             #the target position
             final_x, final_y = end_pos
-            start_x, start_y = BASE_JOINT
+            start_x, start_y = settings.BASE_JOINT
 
             # the angle for the third joint
             theta_3 = math.pi *((1/32) * tries)
@@ -142,9 +81,9 @@ class Path_Planner:
             joint_angle_2 = relative_angle_2 - math.radians(180) + joint_angle_1
 
             tuple = (
-                        round(norm_deg(joint_angle_1) / RESOLUTION),
-                        round(norm_deg(joint_angle_2) / RESOLUTION),
-                        round(norm_deg(theta_3) / RESOLUTION)
+                        round(norm_deg(joint_angle_1) / settings.RESOLUTION ),
+                        round(norm_deg(joint_angle_2) / settings.RESOLUTION ),
+                        round(norm_deg(theta_3) / settings.RESOLUTION )
                     )
 
             if self.position_validifier(tuple, robot, world):
@@ -159,21 +98,21 @@ class Path_Planner:
         if (i, j, k) in self.node_dictionary:
             return self.node_dictionary[(i, j, k)]
         
-        angle_1 = math.radians(i * RESOLUTION)
-        angle_2 = math.radians(j * RESOLUTION)
-        angle_3 = math.radians(k * RESOLUTION)
+        angle_1 = math.radians(i * settings.RESOLUTION )
+        angle_2 = math.radians(j * settings.RESOLUTION )
+        angle_3 = math.radians(k * settings.RESOLUTION )
         self.test_joint_pos = robot.calculate_joint_pos(angle_1, angle_2, angle_3)
 
         for obstacle in world.obstacles:
 
             for joint_pos in self.test_joint_pos:
-                padded_rect = obstacle.rect.inflate(JOINT_COLLISION_PADDING, JOINT_COLLISION_PADDING)
+                padded_rect = obstacle.rect.inflate(settings.JOINT_COLLISION_PADDING, settings.JOINT_COLLISION_PADDING)
                 if padded_rect.collidepoint(joint_pos):
                     self.node_dictionary[(i, j, k)] = False
                     return False
 
             for arm in range(len(self.test_joint_pos) - 1):
-                padded_rect = obstacle.rect.inflate(COLLISION_PADDING, COLLISION_PADDING)
+                padded_rect = obstacle.rect.inflate(settings.COLLISION_PADDING, settings.COLLISION_PADDING)
                 self.collision = bool(padded_rect.clipline(self.test_joint_pos[arm], self.test_joint_pos[arm + 1]))
 
                 if self.collision:

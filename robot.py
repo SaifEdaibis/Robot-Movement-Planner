@@ -2,75 +2,19 @@ import math
 import pygame
 import heapq
 
-# Screen Info
-SCREEN_WIDTH = 600              ### pixels
-SCREEN_HEIGHT = 600
-BACKGROUND_COLOR = (255, 255, 255)
-
-# Timing Info
-FRAMERATE = 60
-
-# Grid Info
-GRID_DIMENSION = 40             ### pixels
-GRID_COLOR = (0, 0, 0)
-GRID_LINE_WIDTH = 2             ### pixels
-
-# Robot Info
-BASE_JOINT = (300, 350)         ### pixels
-
-BASE_JOINT_ANGLE = math.pi/2
-SECOND_JOINT_ANGLE = math.pi/2
-THIRD_JOINT_ANGLE = math.pi/2
-
-STARTING_ARM_LENGTH_ONE = 100
-STARTING_ARM_LENGTH_TWO = 100
-STARTING_ARM_LENGTH_THREE = 100
-
-JOINT_NUMBERS = 4
-ARM_COLOR = (0, 0, 0)
-JOINT_COLOR = (212, 175, 55)
-JOINT_RADIUS = 9
-INNER_JOINT_RADIUS = 5
-ARM_WIDTH = 7                  ### pixels
-
-# Angle Controller
-CONTROL_BACKGROUND_X = 20
-CONTROL_BACKGROUND_Y = 40
-BACKGROUND_WIDTH = 90
-BACKGROUND_HEIGHT = 300
-CONTROL_BACKGROUND_COLOR = (128,128,128)
-
-ANGLE_DISPLAY_PANEL_NUMBER = 3
-INNER_PANEL_X = 40
-INNER_PANEL_Y = 60
-INNER_PANEL_DIMENSIONS = 50
-INNER_PANEL_COLOR = (255,255,255)
-
-TEXT_COLOR = (0,0,0)
-
-# Icons Info
-START_CIRCLE_COLOR = (128, 0, 0)
-END_CIRCLE_COLOR = (0, 100, 0)
-
-# Obstacle Info
-OBSTACLE_COLOR = (135, 206, 235)
-OBSTACLE_START_X = 180
-OBSTACLE_START_Y = 400
-OBSTACLE_DIMENSIONS = 50
-
-# Route Info
-RESOLUTION = 5
-COLLISION_PADDING = ARM_WIDTH
-JOINT_COLLISION_PADDING = JOINT_RADIUS * 2
-WEIGHT = 1.5
+import settings
 
 #--- Helper Functions -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 def relative_angles_from_tuple(node_tuple):
-    i, j, k = [x * RESOLUTION for x in node_tuple]
+    i, j, k = [x * settings.RESOLUTION  for x in node_tuple]
     rel_2 = (180 - i) + j
     rel_3 = (180 - j) + k
     return rel_2 % 360, rel_3 % 360
+
+def circular_diff(a, b, steps=settings.STEPS_PER_REV):
+    diff = abs(a - b) % steps
+    return min(diff, steps - diff)
 
 # converts degrees into node values
 def norm_deg(rad):
@@ -78,14 +22,10 @@ def norm_deg(rad):
 
 # checks the distance between the node and the final node to help determine the cost
 def node_cost_check(node, final_node):
-
-    distance = math.sqrt(
-        ((final_node[0] - node[0]) **2)
-        + ((final_node[1] - node[1]) **2)
-        + ((final_node[2] - node[2]) **2)
-    )
-
-    return distance
+    d0 = circular_diff(node[0], final_node[0])
+    d1 = circular_diff(node[1], final_node[1])
+    d2 = circular_diff(node[2], final_node[2])
+    return math.sqrt(d0**2 + d1**2 + d2**2)
 
 # determines the neighboring nodes and sets them as possible options
 def node_neighbor(node_tuple, planner, robot, world):
@@ -98,7 +38,12 @@ def node_neighbor(node_tuple, planner, robot, world):
     }
 
     for i in range(6):
-            test_tuple = (node_tuple[0] + key[0][i], node_tuple[1] + key[1][i], node_tuple[2] + key[2][i])
+            test_tuple = (
+                (node_tuple[0] + key[0][i]) % settings.STEPS_PER_REV, 
+                (node_tuple[1] + key[1][i]) % settings.STEPS_PER_REV,
+                (node_tuple[2] + key[2][i]) % settings.STEPS_PER_REV
+            )
+
             if  test_tuple in planner.closed_set:
                 continue
             rel_2, rel_3 = relative_angles_from_tuple(test_tuple)
@@ -114,32 +59,32 @@ def node_neighbor(node_tuple, planner, robot, world):
 class Robot:
     def __init__(self):
 
-        self.joints = [None] * JOINT_NUMBERS
-        self.base_joint =   BASE_JOINT
+        self.joints = [None] * settings.JOINT_NUMBERS
+        self.base_joint =   settings.BASE_JOINT
 
         # creates a list that records the angle of each joint
         self.joint_angles = [
-            BASE_JOINT_ANGLE,
-            SECOND_JOINT_ANGLE,
-            THIRD_JOINT_ANGLE,
+            settings.BASE_JOINT_ANGLE ,
+            settings.SECOND_JOINT_ANGLE,
+            settings.THIRD_JOINT_ANGLE,
         ]
 
         # creates a list that records the angle of each arm realtive to the prevous arm. This is used to make arms position fixed
         self.relative_angles = [
-            BASE_JOINT_ANGLE,
+            settings.BASE_JOINT_ANGLE ,
 
-            math.radians((180 - math.degrees(BASE_JOINT_ANGLE)) 
-            + math.degrees(SECOND_JOINT_ANGLE)),
+            math.radians((180 - math.degrees(settings.BASE_JOINT_ANGLE)) 
+            + math.degrees(settings.SECOND_JOINT_ANGLE)),
 
-            math.radians((180 - math.degrees(SECOND_JOINT_ANGLE))
-            + math.degrees(THIRD_JOINT_ANGLE))
+            math.radians((180 - math.degrees(settings.SECOND_JOINT_ANGLE))
+            + math.degrees(settings.THIRD_JOINT_ANGLE))
         ]
 
         # creates list that records starting arm lengths
         self.arm_lengths = [
-            STARTING_ARM_LENGTH_ONE,
-            STARTING_ARM_LENGTH_TWO,
-            STARTING_ARM_LENGTH_THREE
+            settings.STARTING_ARM_LENGTH,
+            settings.STARTING_ARM_LENGTH,
+            settings.STARTING_ARM_LENGTH
         ]
 
         self.Set_Joint_pos(
@@ -182,10 +127,10 @@ class Robot:
             # draws the robots arms
             pygame.draw.line(
                 screen,
-                ARM_COLOR,
+                settings.ARM_COLOR,
                 self.joints[arm],
                 self.joints[arm+1], 
-                ARM_WIDTH
+                settings.ARM_WIDTH
             )
 
         for joint in range(len(self.joints)):
@@ -193,18 +138,18 @@ class Robot:
             #draws the robots outer joints
             pygame.draw.circle(
                 screen,
-                JOINT_COLOR,
+                settings.JOINT_COLOR,
                 self.joints[joint],
-                JOINT_RADIUS,
+                settings.JOINT_RADIUS,
                 width = 0
             )
 
             #draws the robots inner joints
             pygame.draw.circle(
                 screen,
-                ARM_COLOR,
+                settings.ARM_COLOR,
                 self.joints[joint],
-                INNER_JOINT_RADIUS,
+                settings.INNER_JOINT_RADIUS,
                 width = 0
             )
 
@@ -265,15 +210,15 @@ class Robot:
         planner.closed_set = set() 
 
         self.start_tuple = (
-            round(norm_deg(self.joint_angles[0]) / RESOLUTION),
-            round(norm_deg(self.joint_angles[1]) / RESOLUTION),
-            round(norm_deg(self.joint_angles[2]) / RESOLUTION)
+            round(norm_deg(self.joint_angles[0]) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
+            round(norm_deg(self.joint_angles[1]) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
+            round(norm_deg(self.joint_angles[2]) / settings.RESOLUTION ) % settings.STEPS_PER_REV
         )
 
         self.end_tuple = (
-            round(norm_deg(new_1) / RESOLUTION),
-            round(norm_deg(new_2) / RESOLUTION),
-            round(norm_deg(new_3) / RESOLUTION)
+            round(norm_deg(new_1) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
+            round(norm_deg(new_2) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
+            round(norm_deg(new_3) / settings.RESOLUTION ) % settings.STEPS_PER_REV
         )
 
         print("start:", self.start_tuple, "end:", self.end_tuple)
@@ -283,9 +228,10 @@ class Robot:
 
         self.G_value_dictionary = {self.start_tuple: 0}
         open_heap = []
-        start_f = node_cost_check(self.start_tuple, self.end_tuple) * WEIGHT 
+        start_f = node_cost_check(self.start_tuple, self.end_tuple) * settings.WEIGHT 
         heapq.heappush(open_heap, (start_f, self.start_tuple))
         it = 0
+        
         while True:
             print(it)
             it += 1
@@ -309,7 +255,7 @@ class Robot:
                 if options[option] not in self.G_value_dictionary or tentative_g < self.G_value_dictionary[options[option]]:
                     self.G_value_dictionary[options[option]] = tentative_g
                     self.came_from[options[option]] = self.current_node
-                    new_f = node_cost_check(options[option], self.end_tuple) * WEIGHT + self.G_value_dictionary[options[option]]
+                    new_f = node_cost_check(options[option], self.end_tuple) * settings.WEIGHT + self.G_value_dictionary[options[option]]
                     heapq.heappush(open_heap, (new_f, options[option]))
 
         path_angles = [self.end_tuple]
