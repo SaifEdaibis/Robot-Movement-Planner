@@ -265,15 +265,15 @@ class Robot:
         planner.closed_set = set() 
 
         self.start_tuple = (
-            norm_deg(self.joint_angles[0]) // RESOLUTION,
-            norm_deg(self.joint_angles[1]) // RESOLUTION,
-            norm_deg(self.joint_angles[2]) // RESOLUTION
+            round(norm_deg(self.joint_angles[0]) / RESOLUTION),
+            round(norm_deg(self.joint_angles[1]) / RESOLUTION),
+            round(norm_deg(self.joint_angles[2]) / RESOLUTION)
         )
 
         self.end_tuple = (
-            norm_deg(new_1) // RESOLUTION,
-            norm_deg(new_2) // RESOLUTION,
-            norm_deg(new_3) // RESOLUTION
+            round(norm_deg(new_1) / RESOLUTION),
+            round(norm_deg(new_2) / RESOLUTION),
+            round(norm_deg(new_3) / RESOLUTION)
         )
 
         print("start:", self.start_tuple, "end:", self.end_tuple)
@@ -287,6 +287,7 @@ class Robot:
         heapq.heappush(open_heap, (start_f, self.start_tuple))
         it = 0
         while True:
+            print(it)
             it += 1
             if not open_heap:
                         print(f"No route found after {it} tries")
@@ -317,5 +318,6 @@ class Robot:
             node = self.came_from[node]
             path_angles.append(node)
         path_angles.reverse()
+        print("success")
         
         return path_angles

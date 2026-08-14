@@ -2,6 +2,8 @@ import math
 import pygame
 import heapq
 
+from robot import norm_deg
+
 # Screen Info
 SCREEN_WIDTH = 600              ### pixels
 SCREEN_HEIGHT = 600
@@ -72,70 +74,84 @@ class Path_Planner:
         self.node_dictionary = {}
         self.closed_set = set()
 
-    
-    def final_angles(self, end_pos, robot, elbow_sign):
+    def final_angles(self, end_pos, robot, world, elbow_sign):
 
-        # stands for hypotenuse, this is the distance between the base and the 3rd joint. This cannot exceed 200 or the program will crash
-        hypo = 250
+        for tries in range(1,65):
+            print(tries)
+            # stands for hypotenuse, this is the distance between the base and the 3rd joint. This cannot exceed 200 or the program will crash
+            hypo = 250
+            # how many times my program has tried to get a sutable angle
+            theta_3_atempts = 0
 
-        # how many times my program has tried to get a sutable angle
-        tries = 1
-
-        # this program picks a angle for the third joint to allow for the callculation of the other two. It also ensures the 3rd joint is within 200 pixels to prevent a program crash
-        while hypo >= 200:
-
+            
             #the target position
             final_x, final_y = end_pos
+            start_x, start_y = BASE_JOINT
 
             # the angle for the third joint
-            theta_3 = math.pi * ((1/32) * tries)
+            theta_3 = math.pi *((1/32) * tries)
 
             #the positions of the third joint
             final_x = final_x - math.cos(theta_3) * robot.arm_lengths[-1]
             final_y = final_y + math.sin(theta_3) * robot.arm_lengths[-1]
 
-            start_x, start_y = BASE_JOINT
-
             #the differinces between the base joint and third joint. CANNOT EXCEED 200
             delta_x = final_x - start_x
             delta_y = final_y - start_y
 
-            tries += 1
             hypo = math.sqrt((delta_x ** 2) + (delta_y ** 2))
+            theta_3_atempts += 1
 
-            # stops the loop if the arm goes all the way around
-            if tries > 64:
-                return
-        
-        #the angle between the first and second arm which is the relative_angle for the second joint
-        inside_angle_b = elbow_sign * math.acos(
-                                ((delta_x ** 2) 
-                                + (delta_y ** 2)
-                                - (robot.arm_lengths[0] ** 2)
-                                - (robot.arm_lengths[1] ** 2))
-                                / (-2 * robot.arm_lengths[0] * robot.arm_lengths[1])
-                           )
+            if hypo >= 200:
+                continue
+            
+            #the angle between the first and second arm which is the relative_angle for the second joint
+            try:
+                inside_angle_b = elbow_sign * math.acos(
+                                    ((delta_x ** 2) 
+                                    + (delta_y ** 2)
+                                    - (robot.arm_lengths[0] ** 2)
+                                    - (robot.arm_lengths[1] ** 2))
+                                    / (-2 * robot.arm_lengths[0] * robot.arm_lengths[1])
+                            )
+            except:
+              print(f"tries={tries}: hypo={hypo:.2f} - Cannot reach position (arm too short)")
+              continue
 
-        # relative angle for the sceond joint
-        relative_angle_2 = inside_angle_b
+            # relative angle for the sceond joint
+            relative_angle_2 = inside_angle_b
 
-        # the angle between the first arm and the hypotnuse created from the base joint to the third joint
-        inside_angle_a = elbow_sign * math.acos(
-                                        ( (robot.arm_lengths[1] ** 2)
-                                        - (delta_x ** 2) 
-                                        - (delta_y ** 2)
-                                        - (robot.arm_lengths[0] ** 2))
-                                        / (-2 * robot.arm_lengths[0] * math.sqrt((delta_x **2)+ (delta_y ** 2)))
-                                   )
+            # the angle between the first arm and the hypotnuse created from the base joint to the third joint
+            try:
+                inside_angle_a = elbow_sign * math.acos(
+                                            ( (robot.arm_lengths[1] ** 2)
+                                            - (delta_x ** 2) 
+                                            - (delta_y ** 2)
+                                            - (robot.arm_lengths[0] ** 2))
+                                            / (-2 * robot.arm_lengths[0] * math.sqrt((delta_x **2)+ (delta_y ** 2)))
+                                    )
+            except:
+                print(f"tries={tries}: hypo={hypo:.2f} - Cannot reach position (arm too short)")
+                continue
 
-        # the angle between the hypotnuse created from the base joint to the third joint and the x axis
-        base_angle_a = math.atan2(-delta_y,delta_x)
+            # the angle between the hypotnuse created from the base joint to the third joint and the x axis
+            base_angle_a = math.atan2(-delta_y,delta_x)
 
-        # the joint angles for the first two joints
-        joint_angle_1 = inside_angle_a + base_angle_a
-        joint_angle_2 = relative_angle_2 - math.radians(180) + joint_angle_1
+            # the joint angles for the first two joints
+            joint_angle_1 = inside_angle_a + base_angle_a
+            joint_angle_2 = relative_angle_2 - math.radians(180) + joint_angle_1
 
-        return (joint_angle_1, joint_angle_2, theta_3)
+            tuple = (
+                        round(norm_deg(joint_angle_1) / RESOLUTION),
+                        round(norm_deg(joint_angle_2) / RESOLUTION),
+                        round(norm_deg(theta_3) / RESOLUTION)
+                    )
+
+            if self.position_validifier(tuple, robot, world):
+                print("success")
+                return (joint_angle_1, joint_angle_2, theta_3)
+
+        return None
 
     def position_validifier(self, node_tuple, robot, world):
         i, j, k = node_tuple
@@ -158,7 +174,7 @@ class Path_Planner:
 
             for arm in range(len(self.test_joint_pos) - 1):
                 padded_rect = obstacle.rect.inflate(COLLISION_PADDING, COLLISION_PADDING)
-                self.collision = bool(obstacle.rect.clipline(self.test_joint_pos[arm],self.test_joint_pos[arm + 1]))
+                self.collision = bool(padded_rect.clipline(self.test_joint_pos[arm], self.test_joint_pos[arm + 1]))
 
                 if self.collision:
                     self.node_dictionary[(i, j, k)] = False

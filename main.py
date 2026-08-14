@@ -123,14 +123,15 @@ class Application:
                             self.world.icons.end_pos = event.pos  
                         # another right click begins the movement of the arm  
                         else:
-                            old_1, old_2, old_3 = self.planner.final_angles(self.world.icons.start_pos, self.world.robot, elbow_sign= 1)
+                            old_1, old_2, old_3 = self.planner.final_angles(self.world.icons.start_pos, self.world.robot, self.world, elbow_sign = 1)
 
-                            new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, elbow_sign=1)
+                            
+                            new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign =1)
                             self.world.robot.Set_Angles(old_1, old_2, old_3)
                             self.path_list = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
 
                             if self.path_list is None:
-                                new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, elbow_sign=-1)
+                                new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign=-1)
                                 self.world.robot.Set_Angles(old_1, old_2, old_3)
                                 self.path_list = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
                                 
@@ -199,7 +200,6 @@ class Application:
                     )
                     self.counter += 1
                     pygame.time.delay(20)
-            
                 
             pygame.display.update()
             
