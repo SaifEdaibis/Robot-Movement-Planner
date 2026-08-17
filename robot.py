@@ -203,16 +203,16 @@ class Robot:
         )
 
     # calculates all the angles between the start and end position creating a route for the arm
-    def Route_Taker(self, new_1, new_2, new_3, display, world, planner):
+    def Route_Taker(self, start_1, start_2, start_3, new_1, new_2, new_3, display, world, planner):
 
         new = [new_1, new_2, new_3]
         planner.node_dictionary = {}
         planner.closed_set = set() 
 
         self.start_tuple = (
-            round(norm_deg(self.joint_angles[0]) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
-            round(norm_deg(self.joint_angles[1]) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
-            round(norm_deg(self.joint_angles[2]) / settings.RESOLUTION ) % settings.STEPS_PER_REV
+            round(norm_deg(start_1) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
+            round(norm_deg(start_2) / settings.RESOLUTION ) % settings.STEPS_PER_REV,
+            round(norm_deg(start_3) / settings.RESOLUTION ) % settings.STEPS_PER_REV
         )
 
         self.end_tuple = (
@@ -263,7 +263,8 @@ class Robot:
         while node != self.start_tuple:
             node = self.came_from[node]
             path_angles.append(node)
+            
         path_angles.reverse()
-        print("success")
+        print("path found!")
         
         return path_angles

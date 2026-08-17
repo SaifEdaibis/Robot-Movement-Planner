@@ -50,5 +50,5 @@ class World:
         self.icons = Path_Icons()
 
         self.obstacles = []
-        for i in range(3):
+        for i in range(settings.OBSTACLE_NUMBER):
             self.obstacles.append(Obstacle(i))

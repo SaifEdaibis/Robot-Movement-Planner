@@ -60,17 +60,31 @@ class Application:
                             self.world.icons.end_pos = event.pos  
                         # another right click begins the movement of the arm  
                         else:
-                            old_1, old_2, old_3 = self.planner.final_angles(self.world.icons.start_pos, self.world.robot, self.world, elbow_sign = 1)
+                            old_list = self.planner.final_angles(self.world.icons.start_pos, self.world.robot, self.world, elbow_sign = 1)
+                            new_list = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign =1)
 
-                            
-                            new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign =1)
-                            self.world.robot.Set_Angles(old_1, old_2, old_3)
-                            self.path_list = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
+                            if old_list == None or new_list == None:
+                                return
+                            else:
+                                old_1, old_2, old_3 = old_list
+                                new_1, new_2, new_3 = new_list
+
+                            self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
 
                             if self.path_list is None:
-                                new_1, new_2, new_3 = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign=-1)
-                                self.world.robot.Set_Angles(old_1, old_2, old_3)
-                                self.path_list = self.world.robot.Route_Taker(new_1, new_2, new_3, self.display_front, self.world, self.planner)
+                                new_list = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign=-1)
+
+                                if new_list == None:
+                                    return
+                                else:
+                                    new_1, new_2, new_3 = new_list
+
+                                self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
+
+                            if self.path_list is None:
+                                return
+
+                            self.world.robot.Set_Angles(old_1, old_2, old_3)
                                 
 
                     
@@ -136,7 +150,7 @@ class Application:
                         angle_3  = math.radians(self.path_list[self.counter][2] * settings.RESOLUTION )
                     )
                     self.counter += 1
-                    pygame.time.delay(20)
+                    pygame.time.delay(50)
                 
             pygame.display.update()
             

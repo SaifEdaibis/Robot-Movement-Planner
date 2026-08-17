@@ -72,5 +72,5 @@ class Front_Display:
         world.angle_controller.update_labels(world.robot)
         world.angle_controller.draw_controller(self.screen, world.robot)
 
-        for i in range(3):
+        for i in range(settings.OBSTACLE_NUMBER):
             world.obstacles[i].draw_obstacle(self.screen)

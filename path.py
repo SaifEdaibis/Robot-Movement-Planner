@@ -87,9 +87,9 @@ class Path_Planner:
                     )
 
             if self.position_validifier(tuple, robot, world):
-                print("success")
                 return (joint_angle_1, joint_angle_2, theta_3)
-
+        
+        print("no sutable angles found")
         return None
 
     def position_validifier(self, node_tuple, robot, world):
@@ -113,11 +113,23 @@ class Path_Planner:
 
             for arm in range(len(self.test_joint_pos) - 1):
                 padded_rect = obstacle.rect.inflate(settings.COLLISION_PADDING, settings.COLLISION_PADDING)
-                self.collision = bool(padded_rect.clipline(self.test_joint_pos[arm], self.test_joint_pos[arm + 1]))
+                self.obstacle_collision = bool(padded_rect.clipline(self.test_joint_pos[arm], self.test_joint_pos[arm + 1]))
 
-                if self.collision:
+                collision_joint_pos = self.test_joint_pos.copy()
+                collision_joint_pos.remove(self.test_joint_pos[arm])
+                collision_joint_pos.remove(self.test_joint_pos[arm + 1])
+
+                for joints in collision_joint_pos:
+                    joint_rect = pygame.Rect(joints[0] - settings.JOINT_COLLISION_PADDING / 2, joints[1] - settings.JOINT_COLLISION_PADDING / 2, settings.JOINT_COLLISION_PADDING, settings.JOINT_COLLISION_PADDING)
+                    joint_collision = bool(joint_rect.clipline(self.test_joint_pos[arm], self.test_joint_pos[arm + 1]))
+
+                    if joint_collision:
+                        self.node_dictionary[(i, j, k)] = False
+                        return False
+                
+                if self.obstacle_collision:
                     self.node_dictionary[(i, j, k)] = False
                     return False
-
+               
         self.node_dictionary[(i, j, k)] = True
         return True
