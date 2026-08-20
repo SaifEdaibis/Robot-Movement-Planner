@@ -135,6 +135,14 @@ class Application:
             
             self.display_front.screen.fill(settings.BACKGROUND_COLOR)
 
+            pygame.draw.circle(
+                        self.display_front.screen,
+                        settings.BACK_CIRCLE_COLOR,
+                        settings.BASE_JOINT,
+                        settings.STARTING_ARM_LENGTH * 3,
+                        width = 0
+                    )
+
             self.display_front.draw_grid()
 
             self.display_front.draw_world(self.world)

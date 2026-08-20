@@ -41,7 +41,7 @@ class Path_Planner:
             hypo = math.sqrt((delta_x ** 2) + (delta_y ** 2))
             theta_3_atempts += 1
 
-            if hypo >= 200:
+            if hypo >= settings.HYPOTENUSE_LIMIT:
                 continue
             
             #the angle between the first and second arm which is the relative_angle for the second joint
