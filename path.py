@@ -15,6 +15,9 @@ class Path_Planner:
 
     def final_angles(self, end_pos, robot, world, elbow_sign):
 
+        world.path_controller.counter = None
+        world.path_controller.status = "paused"
+
         for tries in range(1,65):
             print(tries)
             # stands for hypotenuse, this is the distance between the base and the 3rd joint. This cannot exceed 200 or the program will crash

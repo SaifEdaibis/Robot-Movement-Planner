@@ -58,11 +58,28 @@ class World:
                     settings.CONTROL_BACKGROUND_Y + 100, 
                     settings.BACKGROUND_WIDTH * 0.75, 
                     settings.BACKGROUND_HEIGHT)
+
+        self.start_angle_display = Angle_Controller(
+                            settings.CONTROL_BACKGROUND_X,
+                            settings.CONTROL_BACKGROUND_Y + 200, 
+                            settings.BACKGROUND_WIDTH * 0.75, 
+                            settings.BACKGROUND_HEIGHT)
+
+        self.end_angle_display = Angle_Controller(
+                                    settings.CONTROL_BACKGROUND_X,
+                                    settings.CONTROL_BACKGROUND_Y + 300, 
+                                    settings.BACKGROUND_WIDTH * 0.75, 
+                                    settings.BACKGROUND_HEIGHT)
         
         self.angle_controller.panel_maker(self.robot, settings.ANGLE_DISPLAY_PANEL_NUMBER)
         self.angle_controller.set_labels(self.robot, settings.ANGLE_DISPLAY_PANEL_NUMBER)
 
-        self.path_controller.panel_maker(self.robot, 2, 1)
+        self.path_controller.function_panel_maker(self.robot, 2, 1)
+        self.path_controller.update_panels(2)
+
+        self.start_angle_display.panel_maker(self.robot, 2, 2)
+        self.end_angle_display.panel_maker(self.robot, 2, 3)
+
         self.icons = Path_Icons()
 
         self.obstacles = []

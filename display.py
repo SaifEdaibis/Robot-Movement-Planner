@@ -66,13 +66,16 @@ class Front_Display:
     def draw_world(self, world):
         
         world.icons.draw_icons(self.screen)
-
         world.robot.draw_robot(self.screen)
 
         world.angle_controller.draw_controller(self.screen)
         world.angle_controller.update_labels(world.robot, self.screen)
 
+        
         world.path_controller.draw_controller(self.screen)
+
+        world.start_angle_display.draw_controller(self.screen)
+        world.end_angle_display.draw_controller(self.screen)
 
         for i in range(settings.OBSTACLE_NUMBER):
             world.obstacles[i].draw_obstacle(self.screen)

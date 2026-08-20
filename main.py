@@ -1,3 +1,5 @@
+import copy
+
 import pygame
 import math
 import heapq
@@ -45,49 +47,29 @@ class Application:
                             item.selected_status = True
 
                 #cursor can not be on the angle controller
-                if self.world.angle_controller.angle_control_background.collidepoint(event.pos):
+                if self.world.angle_controller.angle_control_background.collidepoint(event.pos) or self.world.path_controller.angle_control_background.collidepoint(event.pos):
                     pass
-
                 else:
                     #left click places a start position
-                    if event.button == 1:
+                    if self.world.path_controller.inner_panels_bool[0] == True and self.world.path_controller.inner_panels_bool[1] == False:
                         self.world.icons.start_pos = event.pos
                         self.world.icons.end_pos = None
+                        self.world.path_controller.inner_panels_bool[1] = True
+                        self.world.path_controller.status = "end pos"
 
-                    # right click places an end position
-                    else:
+                    elif self.world.path_controller.inner_panels_bool[1] == True:
                         if self.world.icons.end_pos == None:
-                            self.world.icons.end_pos = event.pos  
-                        # another right click begins the movement of the arm  
-                        else:
-                            old_list = self.planner.final_angles(self.world.icons.start_pos, self.world.robot, self.world, elbow_sign = 1)
-                            new_list = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign =1)
+                            self.world.icons.end_pos = event.pos 
+                            
+                            self.world.path_controller.status = "loading"
+                            self.world.path_controller.counter = 0
 
-                            if old_list == None or new_list == None:
-                                return
-                            else:
-                                old_1, old_2, old_3 = old_list
-                                new_1, new_2, new_3 = new_list
+                if self.world.path_controller.inner_panels[0].collidepoint(event.pos):
+                    if self.world.path_controller.status == "paused":
+                        self.world.path_controller.inner_panels_bool[0] = True 
+                        self.world.path_controller.status = "start pos"
 
-                            self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
-
-                            if self.path_list is None:
-                                new_list = self.planner.final_angles(self.world.icons.end_pos, self.world.robot, self.world, elbow_sign=-1)
-
-                                if new_list == None:
-                                    return
-                                else:
-                                    new_1, new_2, new_3 = new_list
-
-                                self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
-
-                            if self.path_list is None:
-                                return
-
-                            self.world.robot.Set_Angles(old_1, old_2, old_3)
-                                
-
-                    
+                        
                 for num, panel in enumerate(self.world.angle_controller.inner_panels):
 
                     #changes the angle speed
@@ -125,13 +107,57 @@ class Application:
                         if event.button == 1:
                             item.selected_status = False
 
+    def find_route(self):
+        
+        if self.world.icons.start_pos and self.world.icons.end_pos:
+            self.path_list = None
+
+            start_pos = copy.copy(self.world.icons.start_pos)
+            end_pos = copy.copy(self.world.icons.end_pos)
+            self.world.icons.start_pos = None
+            self.world.icons.end_pos = None
+            
+
+            old_list = self.planner.final_angles(start_pos, self.world.robot, self.world, elbow_sign = 1)
+            new_list = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign =1)
+
+            if old_list == None or new_list == None:
+                return
+            else:
+                old_1, old_2, old_3 = old_list
+                new_1, new_2, new_3 = new_list
+
+            self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
+
+            if self.path_list is None:
+                new_list = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign=-1)
+
+                if new_list == None:
+                    return
+                else:
+                    new_1, new_2, new_3 = new_list
+
+                self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
+
+            if self.path_list is None:
+                return
+
+            self.world.robot.Set_Angles(old_1, old_2, old_3)
+
+            self.world.path_controller.inner_panels_bool[0] = False
+            self.world.path_controller.inner_panels_bool[1] = False
+
+            self.world.path_controller.status = "paused"
+
     # The main_loop that draws and calls every repeated functions
-    def main_loop(self):    
+    def main_loop(self):
+
         while self.run:
 
             self.timing()
 
             self.process_events()
+           
             
             self.display_front.screen.fill(settings.BACKGROUND_COLOR)
 
@@ -146,11 +172,17 @@ class Application:
             self.display_front.draw_grid()
 
             self.display_front.draw_world(self.world)
+                
+            pygame.display.update()
+
+            if self.world.path_controller.counter == 0:
+                self.find_route()
 
             if self.path_list:
                 if self.counter == len(self.path_list):
                     self.path_list = None
                     self.counter = 0
+
                 else:
                     self.world.robot.Set_Angles(
                         angle_1  = math.radians(self.path_list[self.counter][0] * settings.RESOLUTION ),
@@ -159,8 +191,7 @@ class Application:
                     )
                     self.counter += 1
                     pygame.time.delay(50)
-                
-            pygame.display.update()
+
             
 
 Main = Application()

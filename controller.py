@@ -17,6 +17,9 @@ class Angle_Controller():
             height
         )
 
+        self.status = None
+        self.counter = None
+
         self.font = pygame.font.Font(None, 35)
 
         # this variable determines the rate of change of the joint angle
@@ -26,27 +29,47 @@ class Angle_Controller():
 
         #these lists hold the panels and the angle labels within the crontoller  
         self.inner_panels = []
-        self.angle_labels = []
+        self.inner_panels_bool = []
 
-        # adds the first panel meant for displaying angle speed
-        self.inner_panels.append(pygame.Rect(
-            settings.INNER_PANEL_X,
-            settings.INNER_PANEL_Y + row * 100,
-            settings.INNER_PANEL_DIMENSIONS,
-            settings.INNER_PANEL_DIMENSIONS
-        ))
-
-        # adds the remaining panels alongside the respective angles they need to display
-        for i in range(panel):
+        # adds the panels
+        for i in range(panel+1):
 
             self.inner_panels.append(pygame.Rect(
-                settings.INNER_PANEL_X + 70*(i+1),
-                settings.INNER_PANEL_Y + row * 100,
-                settings.INNER_PANEL_DIMENSIONS,
-                settings.INNER_PANEL_DIMENSIONS
-            ))
+                            settings.INNER_PANEL_X + 70*(i),
+                            settings.INNER_PANEL_Y + row * 100,
+                            settings.INNER_PANEL_DIMENSIONS,
+                            settings.INNER_PANEL_DIMENSIONS
+                        ))
+
+            self.inner_panels_bool.append(None)
+
+    def function_panel_maker(self, robot, panel, row = 0):
+        #these lists hold the panels and the angle labels within the crontoller  
+                self.inner_panels = []
+                self.inner_panels_bool = []
+                self.status = "paused"
+
+                self.inner_panels.append(pygame.Rect(
+                                                    settings.INNER_PANEL_X,
+                                                    settings.INNER_PANEL_Y + row * 100,
+                                                    settings.INNER_FUNCTION_PANEL_WIDTH,
+                                                    settings.INNER_FUNCTION_PANEL_HEIGHT
+                                                ))
+        
+                # adds the panels
+                for i in range(panel+1):
+                    self.inner_panels_bool.append(None)
+        
+                    
+
+    def update_panels(self, panel):
+
+        # updates the panels to reflect the current color
+        for i in range(panel):
+            self.inner_panels_bool[i] = False
 
     def set_labels(self, robot, panel):
+        self.angle_labels = []
 
         # adds the remaining angles they need to display
         for i in range(panel):
@@ -63,8 +86,6 @@ class Angle_Controller():
             else:
                 angle = int(math.degrees(robot.relative_angles[i-1]))
                 self.angle_labels[i-1] = (self.font.render(f"{angle}", True, settings.TEXT_COLOR))
-
-
         
         for i in range(len(self.inner_panels)):
             #labels the angle speed
@@ -90,5 +111,17 @@ class Angle_Controller():
         # draws the inner panels alongside their labels
         for i in range(len(self.inner_panels)):
 
+            if self.status:
+                if self.status == "paused":
+                    color = settings.PAUSED_COLOR
+                elif self.status == "start pos":
+                    color = settings.OFF_COLOR
+                elif self.status == "end pos":
+                    color = settings.ON_COLOR
+                elif self.status == "loading":
+                    color = settings.LOADING_COLOR
+            else:
+                color = settings.INNER_PANEL_COLOR
+
             # draws each inner panel
-            pygame.draw.rect(screen, settings.INNER_PANEL_COLOR, self.inner_panels[i])
+            pygame.draw.rect(screen, color, self.inner_panels[i])
