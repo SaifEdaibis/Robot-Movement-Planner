@@ -71,11 +71,16 @@ class Front_Display:
         world.angle_controller.draw_controller(self.screen)
         world.angle_controller.update_labels(world.robot, self.screen)
 
+        print(type(world.path_controller), world.path_controller.__class__.__mro__)
         
         world.path_controller.draw_controller(self.screen)
+        world.path_controller.update_function_label(self.screen)
 
         world.start_angle_display.draw_controller(self.screen)
+        world.start_angle_display.update_labels(world.robot, self.screen, world.start_angle_display.label_list)
+
         world.end_angle_display.draw_controller(self.screen)
+        world.end_angle_display.update_labels(world.robot, self.screen, world.end_angle_display.label_list)
 
         for i in range(settings.OBSTACLE_NUMBER):
             world.obstacles[i].draw_obstacle(self.screen)

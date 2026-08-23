@@ -1,5 +1,14 @@
 import math
 
+# dictionary
+DIC = {
+    None : ["", 0],
+    "paused" : ["Start", 35],
+    "start pos" : ["Pick Start Position", 24],
+    "end pos" : ["Pick End Position", 24],
+    "loading" : ["Loading...", 28]
+}
+
 # Screen Info
 SCREEN_WIDTH = 1000              ### pixels
 SCREEN_HEIGHT = 625
@@ -47,6 +56,7 @@ INNER_FUNCTION_PANEL_WIDTH = 185
 INNER_FUNCTION_PANEL_HEIGHT = 50
 
 TEXT_COLOR = (0,0,0)
+FUNCTION_TEXT_COLOR = (255,255,255)
 
 ON_COLOR = (0, 100, 0)
 LOADING_COLOR = (255, 255, 0)

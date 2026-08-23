@@ -19,8 +19,11 @@ class Angle_Controller():
 
         self.status = None
         self.counter = None
+        self.label_list = None
+        self.angle_labels = []
+        self.label_list = [0, 0, 0]
 
-        self.font = pygame.font.Font(None, 35)
+        self.font = pygame.font.Font(None, 30)
 
         # this variable determines the rate of change of the joint angle
         self.angle_speed = 1
@@ -59,9 +62,18 @@ class Angle_Controller():
                 # adds the panels
                 for i in range(panel+1):
                     self.inner_panels_bool.append(None)
-        
-                    
 
+    def update_function_label(self, screen):
+            self.font = pygame.font.Font(None, settings.DIC[self.status][1])
+            self.function_label = self.font.render(f"{settings.DIC[self.status][0]}", True, settings.FUNCTION_TEXT_COLOR)
+            center_x, center_y = self.inner_panels[0].center
+            width, height = self.font.size(f"{settings.DIC[self.status][0]}")
+            screen.blit(
+                self.function_label,
+                (center_x - (width/2),
+                 center_y- (height/2))
+            )
+        
     def update_panels(self, panel):
 
         # updates the panels to reflect the current color
@@ -78,25 +90,45 @@ class Angle_Controller():
             angle = int(math.degrees(robot.relative_angles[i]))
             self.angle_labels.append(self.font.render(f"{angle}", True, settings.TEXT_COLOR))
 
-
-    def update_labels(self, robot, screen):
-        for i in range(len(self.inner_panels)):
-            if i == 0:
-                self.speed_label = self.font.render(f"{self.angle_speed}", True, settings.TEXT_COLOR)
-            else:
-                angle = int(math.degrees(robot.relative_angles[i-1]))
-                self.angle_labels[i-1] = (self.font.render(f"{angle}", True, settings.TEXT_COLOR))
+    def update_labels(self, robot, screen, list = None):
+    
+        if not list:
+            for i in range(len(self.inner_panels)):
+                if i == 0:
+                    self.speed_label = self.font.render(f"{self.angle_speed}", True, settings.TEXT_COLOR)
+                else:
+                    angle = int(math.degrees(robot.relative_angles[i-1]))
+                    self.angle_labels[i-1] = (self.font.render(f"{angle}", True, settings.TEXT_COLOR))
+        else:
+            self.angle_labels.clear()
+            for i in range(len(self.inner_panels)):
+                angle = int(math.degrees(list[i]))
+                self.angle_labels.append(self.font.render(f"{angle}", True, settings.TEXT_COLOR))
         
         for i in range(len(self.inner_panels)):
-            #labels the angle speed
-            if i == 0:
-                center_x, center_y = self.inner_panels[i].center
-                screen.blit(self.speed_label, (center_x-12, center_y-12))
-
-            #labels the joint angles for the remaining panels
+            center_x, center_y = self.inner_panels[i].center
+            if i == 0 and not list:
+                width, height = self.speed_label.get_size()
+            elif not list:
+                width, height = self.angle_labels[i-1].get_size()
             else:
-                center_x, center_y = self.inner_panels[i].center
-                screen.blit(self.angle_labels[i-1], (center_x-12, center_y-12))
+                width, height = self.angle_labels[i].get_size()
+                
+            label_pos = (
+                center_x - (width/2),
+                center_y- (height/2)
+            )
+
+            #labels the angle speed
+            if not list:
+                if i == 0:
+                    screen.blit(self.speed_label, label_pos)
+
+                #labels the joint angles for the remaining panels
+                else:
+                    screen.blit(self.angle_labels[i-1], label_pos)
+            else:
+                screen.blit(self.angle_labels[i], label_pos)
 
     # draws the angle controller
     def draw_controller(self, screen):

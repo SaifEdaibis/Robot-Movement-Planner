@@ -112,6 +112,12 @@ class Application:
         if self.world.icons.start_pos and self.world.icons.end_pos:
             self.path_list = None
 
+            
+            self.world.path_controller.inner_panels_bool[0] = False
+            self.world.path_controller.inner_panels_bool[1] = False
+
+            self.world.path_controller.status = "paused"
+
             start_pos = copy.copy(self.world.icons.start_pos)
             end_pos = copy.copy(self.world.icons.end_pos)
             self.world.icons.start_pos = None
@@ -120,6 +126,9 @@ class Application:
 
             old_list = self.planner.final_angles(start_pos, self.world.robot, self.world, elbow_sign = 1)
             new_list = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign =1)
+
+            self.world.start_angle_display.label_list = copy.copy(old_list)
+            self.world.end_angle_display.label_list = copy.copy(new_list)
 
             if old_list == None or new_list == None:
                 return
@@ -144,10 +153,6 @@ class Application:
 
             self.world.robot.Set_Angles(old_1, old_2, old_3)
 
-            self.world.path_controller.inner_panels_bool[0] = False
-            self.world.path_controller.inner_panels_bool[1] = False
-
-            self.world.path_controller.status = "paused"
 
     # The main_loop that draws and calls every repeated functions
     def main_loop(self):
