@@ -100,6 +100,7 @@ class Angle_Controller():
                     angle = int(math.degrees(robot.relative_angles[i-1]))
                     self.angle_labels[i-1] = (self.font.render(f"{angle}", True, settings.TEXT_COLOR))
         else:
+
             self.angle_labels.clear()
             for i in range(len(self.inner_panels)):
                 angle = int(math.degrees(list[i]))

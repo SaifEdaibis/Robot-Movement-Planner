@@ -5,6 +5,7 @@ import heapq
 from robot import Robot
 from controller import Angle_Controller
 from obstacle import Obstacle
+from Arcs import Angle_Arc
 import settings
 
 #--- Path Icons ------------------------------------------------------------------------------------------------------------------------------------------
@@ -83,5 +84,37 @@ class World:
         self.icons = Path_Icons()
 
         self.obstacles = []
-        for i in range(settings.OBSTACLE_NUMBER):
-            self.obstacles.append(Obstacle(i))
+        self.obstacles.append(Obstacle())
+
+        self.arcs = []
+        for i in range(settings.JOINT_NUM):
+            if i == 0:
+                start_angle = 0
+                end_angle = self.robot.joint_angles[0]
+            else:
+                start_angle = self.robot.joint_angles[i-1] + math.pi
+                raw_diff = (self.robot.joint_angles[i] - start_angle) % (2 * math.pi)
+                if raw_diff > math.pi:
+                    raw_diff -= 2 * math.pi   # take the shorter way around
+                end_angle = start_angle + raw_diff
+
+            if end_angle < start_angle:
+                start_angle, end_angle = end_angle, start_angle
+
+            x, y = self.robot.joints[i]
+            center = (
+                x - (settings.ARC_DIAMETER/2),
+                y - (settings.ARC_DIAMETER/2),
+                settings.ARC_DIAMETER,
+                settings.ARC_DIAMETER
+            )
+
+            self.arcs.append(Angle_Arc(start_angle, end_angle, center))
+
+    def spawn_obstacles(self):
+        test_object = Obstacle()
+        test_one, test_two = test_object.collision_check(self)
+
+        if test_one is not None and test_two is not None:
+            self.obstacles.append(Obstacle())
+

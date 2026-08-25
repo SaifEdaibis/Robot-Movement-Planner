@@ -82,5 +82,32 @@ class Front_Display:
         world.end_angle_display.draw_controller(self.screen)
         world.end_angle_display.update_labels(world.robot, self.screen, world.end_angle_display.label_list)
 
-        for i in range(settings.OBSTACLE_NUMBER):
+        world.spawn_obstacles()
+
+        for i in range(settings.JOINT_NUM):
+                    if i == 0:
+                        start_angle = 0
+                        end_angle = world.robot.joint_angles[0]
+                    else:
+                        start_angle = world.robot.joint_angles[i-1] + math.pi
+                        raw_diff = (world.robot.joint_angles[i] - start_angle) % (2 * math.pi)
+                        if raw_diff > math.pi:
+                            raw_diff -= 2 * math.pi   # take the shorter way around
+                        end_angle = start_angle + raw_diff
+
+                    if end_angle < start_angle:
+                        start_angle, end_angle = end_angle, start_angle
+
+                    x, y = world.robot.joints[i]
+                    center = (
+                        x - (settings.ARC_DIAMETER/2),
+                        y - (settings.ARC_DIAMETER/2),
+                        settings.ARC_DIAMETER,
+                        settings.ARC_DIAMETER
+                    )
+            
+                    world.arcs[i].update_arc(start_angle, end_angle, center)
+                    world.arcs[i].draw_arc(self.screen)
+
+        for i in range(len(world.obstacles)):
             world.obstacles[i].draw_obstacle(self.screen)

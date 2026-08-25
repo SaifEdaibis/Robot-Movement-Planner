@@ -8,9 +8,9 @@ import settings
 
 #creates obstacles for the arm
 class Obstacle:
-    def __init__(self, num):
+    def __init__(self):
         self.rect = pygame.Rect(
-            settings.OBSTACLE_START_X + num * 100,
+            settings.OBSTACLE_START_X,
             settings.OBSTACLE_START_Y,
             settings.OBSTACLE_DIMENSIONS,
             settings.OBSTACLE_DIMENSIONS
@@ -45,6 +45,9 @@ class Obstacle:
             if obj is self:
                 continue
 
+            if (x_change == 0 or y_change == 0) and self.rect.colliderect(obj.rect):
+                return None, None
+            
             # --- check x movement on its own ---
             x_rect = self.rect.move(x_change, 0)
             if x_rect.colliderect(obj.rect):
