@@ -28,18 +28,32 @@ class Angle_Controller():
         # this variable determines the rate of change of the joint angle
         self.angle_speed = 1
 
-    def panel_maker(self, robot, panel, row = 0):
+    def panel_maker(self, robot, panel, row = 0, excepetion = None):
 
         #these lists hold the panels and the angle labels within the crontoller  
         self.inner_panels = []
+        self.left_panel = []
         self.inner_panels_bool = []
 
         # adds the panels
         for i in range(panel+1):
 
+            if excepetion:
+                placeholder = i + 1
+            else:
+                placeholder = i
+
+            if placeholder != panel + 1:
+                self.left_panel.append(pygame.Rect(
+                    settings.INNER_PANEL_X + 70*(placeholder),
+                    settings.INNER_PANEL_Y + row * 140,
+                    settings.LEFT_PANEL_X,
+                    settings.INNER_PANEL_DIMENSIONS
+                ))
+
             self.inner_panels.append(pygame.Rect(
                             settings.INNER_PANEL_X + 70*(i),
-                            settings.INNER_PANEL_Y + row * 100,
+                            settings.INNER_PANEL_Y + row * 140,
                             settings.INNER_PANEL_DIMENSIONS,
                             settings.INNER_PANEL_DIMENSIONS
                         ))
@@ -51,10 +65,11 @@ class Angle_Controller():
                 self.inner_panels = []
                 self.inner_panels_bool = []
                 self.status = "paused"
+                self.left_panel = None
 
                 self.inner_panels.append(pygame.Rect(
                                                     settings.INNER_PANEL_X,
-                                                    settings.INNER_PANEL_Y + row * 100,
+                                                    settings.INNER_PANEL_Y + row * 140,
                                                     settings.INNER_FUNCTION_PANEL_WIDTH,
                                                     settings.INNER_FUNCTION_PANEL_HEIGHT
                                                 ))
@@ -63,7 +78,14 @@ class Angle_Controller():
                 for i in range(panel+1):
                     self.inner_panels_bool.append(None)
 
-    def update_function_label(self, screen):
+    def update_function_label(self, screen, row):
+
+            self.font = pygame.font.Font(None, 30)
+            position = self.angle_control_background.topleft
+            main_label_pos = (position[0] + 10, position[1] + 10)
+            self.main_label = self.font.render(f"{settings.CONTROLLER_DIC[row]}", True, settings.MAIN_TEXT_COLOR)
+            screen.blit(self.main_label, main_label_pos)
+            
             self.font = pygame.font.Font(None, settings.DIC[self.status][1])
             self.function_label = self.font.render(f"{settings.DIC[self.status][0]}", True, settings.FUNCTION_TEXT_COLOR)
             center_x, center_y = self.inner_panels[0].center
@@ -90,7 +112,12 @@ class Angle_Controller():
             angle = int(math.degrees(robot.relative_angles[i]))
             self.angle_labels.append(self.font.render(f"{angle}", True, settings.TEXT_COLOR))
 
-    def update_labels(self, robot, screen, list = None):
+    def update_labels(self, robot, screen, row, list = None):
+
+        position = self.angle_control_background.topleft
+        main_label_pos = (position[0] + 10, position[1] + 10)
+        self.main_label = self.font.render(f"{settings.CONTROLLER_DIC[row]}", True, settings.MAIN_TEXT_COLOR)
+        screen.blit(self.main_label, main_label_pos)
     
         if not list:
             for i in range(len(self.inner_panels)):
@@ -145,16 +172,13 @@ class Angle_Controller():
         for i in range(len(self.inner_panels)):
 
             if self.status:
-                if self.status == "paused":
-                    color = settings.PAUSED_COLOR
-                elif self.status == "start pos":
-                    color = settings.OFF_COLOR
-                elif self.status == "end pos":
-                    color = settings.ON_COLOR
-                elif self.status == "loading":
-                    color = settings.LOADING_COLOR
+                color = settings.COLOR_DIC[self.status]
             else:
                 color = settings.INNER_PANEL_COLOR
 
             # draws each inner panel
             pygame.draw.rect(screen, color, self.inner_panels[i])
+
+        if self.left_panel:
+            for i in range(len(self.left_panel)):
+                pygame.draw.rect(screen, settings.ARC_DIC[i], self.left_panel[i])

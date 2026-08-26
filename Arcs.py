@@ -13,10 +13,10 @@ class Angle_Arc():
         self.end_angle = end
         self.rect = center
 
-    def draw_arc(self, screen):
+    def draw_arc(self, screen, arc):
         pygame.draw.arc(
             screen,
-                        settings.ARC_COLOR,
+                        settings.ARC_DIC[arc],
                         self.rect,
                         self.start_angle,
                         self.end_angle,

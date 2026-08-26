@@ -107,6 +107,8 @@ class Application:
                         if event.button == 1:
                             item.selected_status = False
 
+            
+
     def find_route(self):
         
         if self.world.icons.start_pos and self.world.icons.end_pos:
@@ -124,43 +126,43 @@ class Application:
             self.world.icons.end_pos = None
             
 
-            old_tuple = self.planner.final_angles(start_pos, self.world.robot, self.world, elbow_sign = 1)
-            new_tuple = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign =1)
+            self.start_tuple = self.planner.final_angles(start_pos, self.world.robot, self.world, elbow_sign = 1)
+            self.end_tuple = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign =1)
 
-            old_list = [None] * len(old_tuple)
-            new_list = [None] * len(new_tuple)
+            old_list = [None] * len(self.start_tuple)
+            new_list = [None] * len(self.end_tuple)
 
-            for i in range(len(old_tuple)):
+            for i in range(len(self.start_tuple)):
                 if i == 0:
-                    old_list[i] = old_tuple[i]
+                    old_list[i] = self.start_tuple[i]
                 else: 
-                    old_list[i] = old_tuple[i] + math.pi - old_list[i-1]
+                    old_list[i] = self.start_tuple[i] + math.pi - self.start_tuple[i-1]
 
-            for i in range(len(new_tuple)):
+            for i in range(len(self.end_tuple)):
                 if i == 0:
-                    new_list[i] = new_tuple[i]
+                    new_list[i] = self.end_tuple[i]
                 else: 
-                    new_list[i] = new_tuple[i] + math.pi - new_list[i-1]
+                    new_list[i] = self.end_tuple[i] + math.pi - self.end_tuple[i-1]
 
             self.world.start_angle_display.label_list = copy.copy(old_list)
             self.world.end_angle_display.label_list = copy.copy(new_list)
 
 
-            if old_tuple == None or new_tuple == None:
+            if self.start_tuple == None or self.end_tuple == None:
                 return
             else:
-                old_1, old_2, old_3 = old_tuple
-                new_1, new_2, new_3 = new_tuple
+                old_1, old_2, old_3 = self.start_tuple
+                new_1, new_2, new_3 = self.end_tuple
 
             self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
 
             if self.path_list is None:
-                new_tuple = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign=-1)
+                self.end_tuple = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign=-1)
 
-                if new_tuple == None:
+                if self.end_tuple == None:
                     return
                 else:
-                    new_1, new_2, new_3 = new_tuple
+                    new_1, new_2, new_3 = self.end_tuple
 
                 self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
 
@@ -203,6 +205,12 @@ class Application:
                 if self.counter == len(self.path_list):
                     self.path_list = None
                     self.counter = 0
+
+                    self.world.robot.Set_Angles(
+                        self.end_tuple[0],
+                        self.end_tuple[1],
+                        self.end_tuple[2],
+                    )
 
                 else:
                     self.world.robot.Set_Angles(
