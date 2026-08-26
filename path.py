@@ -90,6 +90,9 @@ class Path_Planner:
                     )
 
             if self.position_validifier(tuple, robot, world):
+                joint_angle_1 = joint_angle_1 % (2 * math.pi)
+                joint_angle_2 = joint_angle_2 % (2 * math.pi)
+                theta_3 = theta_3 % (2 * math.pi)
                 return (joint_angle_1, joint_angle_2, theta_3)
         
         print("no sutable angles found")

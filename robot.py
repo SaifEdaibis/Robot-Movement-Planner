@@ -166,7 +166,7 @@ class Robot:
                 return
 
         # changes joint angle
-        self.joint_angles[joint] -= math.radians(angle)
+        self.joint_angles[joint] -= math.radians((math.degrees(self.joint_angles[joint]) - angle) % 360)
 
         # changes realtive arm angle
         if joint == 0:
@@ -203,7 +203,7 @@ class Robot:
         )
 
     # calculates all the angles between the start and end position creating a route for the arm
-    def Route_Taker(self, start_1, start_2, start_3, new_1, new_2, new_3, display, world, planner):
+    def Route_Taker(self, start_1, start_2, start_3, new_1, new_2, new_3, display, world, planner, num = 0):
 
         new = [new_1, new_2, new_3]
         planner.node_dictionary = {}
@@ -236,7 +236,8 @@ class Robot:
             print(it)
             it += 1
             if not open_heap:
-                        print(f"No route found after {it} tries")
+                        if num:
+                            world.status_menu.menu_list.append(f"No route found after {it} tries")
                         return None
 
             current_f, self.current_node = heapq.heappop(open_heap)
@@ -265,6 +266,6 @@ class Robot:
             path_angles.append(node)
             
         path_angles.reverse()
-        print("path found!")
+        world.status_menu.menu_list.append(f"Path found after {it} tries")
         
         return path_angles

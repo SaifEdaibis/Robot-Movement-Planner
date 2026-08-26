@@ -22,11 +22,31 @@ class Angle_Controller():
         self.label_list = None
         self.angle_labels = []
         self.label_list = [0, 0, 0]
+        self.inner_panels = []
+        self.left_panel = []
 
         self.font = pygame.font.Font(None, 30)
 
         # this variable determines the rate of change of the joint angle
         self.angle_speed = 1
+
+    def menu_panel_maker(self, panel):
+
+        self.inner_panels = []
+        self.inner_panels_bool = []
+        self.menu_list = []
+
+        for i in range(panel):
+        
+            self.inner_panels.append(pygame.Rect(
+                            settings.MENU_PANELS_X,
+                            settings.MENU_PANELS_Y + i * (100/3),
+                            settings.MENU_WIDTH,
+                            settings.MENU_HEIGHT
+                        ))
+
+            self.inner_panels_bool.append(None)
+
 
     def panel_maker(self, robot, panel, row = 0, excepetion = None):
 
@@ -112,6 +132,27 @@ class Angle_Controller():
             angle = int(math.degrees(robot.relative_angles[i]))
             self.angle_labels.append(self.font.render(f"{angle}", True, settings.TEXT_COLOR))
 
+    def update_menu(self, screen):
+        while len(self.menu_list) > 3:
+            del self.menu_list[0]
+
+        for i in range(len(self.menu_list)):
+            items = list(reversed(self.menu_list))
+
+            self.font = pygame.font.Font(None, 30)
+            width, height = self.font.size(f"{items[i]}")
+            loop = 1
+
+            while settings.MENU_WIDTH < (width + 10) or settings.MENU_HEIGHT < (height + 10):
+                self.font = pygame.font.Font(None, 30 - loop)
+                width, height = self.font.size(f"{items[i]}")
+                loop += 1
+
+            position = self.inner_panels[i].topleft
+            menu_label_pos = (position[0] + 5, position[1] + 5)
+            self.menu_label = self.font.render(f"{items[i]}", True, settings.TEXT_COLOR)
+            screen.blit(self.menu_label, menu_label_pos)
+
     def update_labels(self, robot, screen, row, list = None):
 
         position = self.angle_control_background.topleft
@@ -159,7 +200,7 @@ class Angle_Controller():
                 screen.blit(self.angle_labels[i], label_pos)
 
     # draws the angle controller
-    def draw_controller(self, screen):
+    def draw_controller(self, screen, border = 0):
 
         # draws the background panel for the controller
         pygame.draw.rect(
@@ -178,6 +219,9 @@ class Angle_Controller():
 
             # draws each inner panel
             pygame.draw.rect(screen, color, self.inner_panels[i])
+
+            if border:
+                pygame.draw.rect(screen, settings.CONTROL_BACKGROUND_COLOR, self.inner_panels[i], border)
 
         if self.left_panel:
             for i in range(len(self.left_panel)):

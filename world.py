@@ -47,6 +47,8 @@ class Path_Icons:
 class World:
     def __init__(self):
 
+        self.success = True
+
         self.robot = Robot()
         self.angle_controller = Angle_Controller(
             settings.CONTROL_BACKGROUND_X,
@@ -55,22 +57,28 @@ class World:
             settings.BACKGROUND_HEIGHT)
 
         self.path_controller = Angle_Controller(
-                    settings.CONTROL_BACKGROUND_X,
-                    settings.CONTROL_BACKGROUND_Y + 140, 
-                    settings.BACKGROUND_WIDTH * 0.75, 
-                    settings.BACKGROUND_HEIGHT)
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 140, 
+            settings.BACKGROUND_WIDTH * 0.75, 
+            settings.BACKGROUND_HEIGHT)
 
         self.start_angle_display = Angle_Controller(
-                            settings.CONTROL_BACKGROUND_X,
-                            settings.CONTROL_BACKGROUND_Y + 280, 
-                            settings.BACKGROUND_WIDTH * 0.75, 
-                            settings.BACKGROUND_HEIGHT)
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 280, 
+            settings.BACKGROUND_WIDTH * 0.75, 
+            settings.BACKGROUND_HEIGHT)
 
         self.end_angle_display = Angle_Controller(
-                                    settings.CONTROL_BACKGROUND_X,
-                                    settings.CONTROL_BACKGROUND_Y + 420, 
-                                    settings.BACKGROUND_WIDTH * 0.75, 
-                                    settings.BACKGROUND_HEIGHT)
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 420, 
+            settings.BACKGROUND_WIDTH * 0.75, 
+            settings.BACKGROUND_HEIGHT)
+
+        self.status_menu = Angle_Controller(
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 560, 
+            settings.BACKGROUND_WIDTH, 
+            settings.BACKGROUND_HEIGHT)
         
         self.angle_controller.panel_maker(self.robot, settings.ANGLE_DISPLAY_PANEL_NUMBER, row = 0, excepetion=1)
         self.angle_controller.set_labels(self.robot, settings.ANGLE_DISPLAY_PANEL_NUMBER)
@@ -80,6 +88,8 @@ class World:
 
         self.start_angle_display.panel_maker(self.robot, 2, 2)
         self.end_angle_display.panel_maker(self.robot, 2, 3)
+
+        self.status_menu.menu_panel_maker(3)
 
         self.icons = Path_Icons()
 

@@ -77,15 +77,22 @@ class Front_Display:
         world.path_controller.update_function_label(self.screen, 1)
 
         world.start_angle_display.draw_controller(self.screen)
-        world.start_angle_display.update_labels(world.robot, self.screen, 2, world.start_angle_display.label_list)
-
+        
         world.end_angle_display.draw_controller(self.screen)
-        world.end_angle_display.update_labels(world.robot, self.screen, 3, world.end_angle_display.label_list)
+        
+        world.status_menu.draw_controller(self.screen)
 
         world.draw_delete_zone(self.screen)
         world.delete_object()
         
         world.spawn_obstacles()
+
+        world.status_menu.draw_controller(self.screen, 2)
+        world.status_menu.update_menu(self.screen)
+
+        world.end_angle_display.update_labels(world.robot, self.screen, 3, world.end_angle_display.label_list)
+        world.start_angle_display.update_labels(world.robot, self.screen, 2, world.start_angle_display.label_list)
+                    
 
 
         for i in range(settings.JOINT_NUM):

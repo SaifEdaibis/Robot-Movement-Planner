@@ -109,7 +109,7 @@ class Application:
 
             
 
-    def find_route(self):
+    def find_route(self, menu):
         
         if self.world.icons.start_pos and self.world.icons.end_pos:
             self.path_list = None
@@ -129,24 +129,27 @@ class Application:
             self.start_tuple = self.planner.final_angles(start_pos, self.world.robot, self.world, elbow_sign = 1)
             self.end_tuple = self.planner.final_angles(end_pos, self.world.robot, self.world, elbow_sign =1)
 
+            if self.start_tuple == None:
+                menu.menu_list.append("Starting Position Out Of Bounds")
+                return
+            elif self.end_tuple == None:
+                menu.menu_list.append("Final Position Out Of Bounds")
+                return
+
             old_list = [None] * len(self.start_tuple)
             new_list = [None] * len(self.end_tuple)
 
             for i in range(len(self.start_tuple)):
                 if i == 0:
-                    old_list[i] = self.start_tuple[i]
+                    old_list[i] = self.start_tuple[i] % (2 * math.pi)
                 else: 
-                    old_list[i] = self.start_tuple[i] + math.pi - self.start_tuple[i-1]
+                    old_list[i] = (self.start_tuple[i] + math.pi - self.start_tuple[i-1]) % (2 * math.pi)
 
             for i in range(len(self.end_tuple)):
                 if i == 0:
-                    new_list[i] = self.end_tuple[i]
+                    new_list[i] = self.end_tuple[i] % (2 * math.pi)
                 else: 
-                    new_list[i] = self.end_tuple[i] + math.pi - self.end_tuple[i-1]
-
-            self.world.start_angle_display.label_list = copy.copy(old_list)
-            self.world.end_angle_display.label_list = copy.copy(new_list)
-
+                    new_list[i] = (self.end_tuple[i] + math.pi - self.end_tuple[i-1]) % (2 * math.pi)
 
             if self.start_tuple == None or self.end_tuple == None:
                 return
@@ -164,10 +167,13 @@ class Application:
                 else:
                     new_1, new_2, new_3 = self.end_tuple
 
-                self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner)
+                self.path_list = self.world.robot.Route_Taker(old_1, old_2, old_3, new_1, new_2, new_3, self.display_front, self.world, self.planner, num = 1)
 
             if self.path_list is None:
                 return
+
+            self.world.start_angle_display.label_list = copy.copy(old_list)
+            self.world.end_angle_display.label_list = copy.copy(new_list)
 
             self.world.robot.Set_Angles(old_1, old_2, old_3)
 
@@ -181,7 +187,6 @@ class Application:
 
             self.process_events()
            
-            
             self.display_front.screen.fill(settings.BACKGROUND_COLOR)
 
             pygame.draw.circle(
@@ -199,7 +204,7 @@ class Application:
             pygame.display.update()
 
             if self.world.path_controller.counter == 0:
-                self.find_route()
+                self.find_route(self.world.status_menu)
 
             if self.path_list:
                 if self.counter == len(self.path_list):
