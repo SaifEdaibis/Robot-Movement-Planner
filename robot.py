@@ -161,25 +161,25 @@ class Robot:
             pass
         else:
             self.test_joint_angle = self.joint_angles[joint] - math.radians(angle)
-            self.text_relative_angle = (180 - math.degrees(self.joint_angles[joint-1])) + math.degrees(self.test_joint_angle)
+            self.text_relative_angle = (180 - math.degrees(self.joint_angles[joint-1])) + math.degrees(self.test_joint_angle) 
             if self.text_relative_angle < 5 or self.text_relative_angle > 355:
                 return
 
         # changes joint angle
-        self.joint_angles[joint] -= math.radians(angle)
+        self.joint_angles[joint] -= math.radians((math.degrees(self.joint_angles[joint]) - angle) % 360)
 
         # changes realtive arm angle
         if joint == 0:
             self.relative_angles[joint] = self.joint_angles[joint]
         else:
-            self.relative_angles[joint] = math.radians((180 - math.degrees(self.joint_angles[joint-1])) + math.degrees(self.joint_angles[joint]))
+            self.relative_angles[joint] = math.radians(((180 - math.degrees(self.joint_angles[joint-1])) + math.degrees(self.joint_angles[joint])) % 360)
             
         #updates each joint angle based on the new relative and joint angle
         for joints in range(len(self.joint_angles)):
             if joints == 0:
                 pass
             else:
-                self.joint_angles[joints] = math.radians(math.degrees(self.relative_angles[joints]) - (180 - math.degrees(self.joint_angles[joints-1])))
+                self.joint_angles[joints] = math.radians((math.degrees(self.relative_angles[joints]) - (180 - math.degrees(self.joint_angles[joints-1]))) % 360)
 
         # calculates new joint positions
         self.Set_Joint_pos(
@@ -196,14 +196,14 @@ class Robot:
             if i == 0:
                 self.relative_angles[i] = self.joint_angles[i]
             else:
-                self.relative_angles[i] = math.radians((180 - math.degrees(self.joint_angles[i-1])) + math.degrees(self.joint_angles[i]))
+                self.relative_angles[i] = math.radians(((180 - math.degrees(self.joint_angles[i-1])) + math.degrees(self.joint_angles[i])) % 360)
 
         self.Set_Joint_pos(
             self.calculate_joint_pos()
         )
 
     # calculates all the angles between the start and end position creating a route for the arm
-    def Route_Taker(self, start_1, start_2, start_3, new_1, new_2, new_3, display, world, planner):
+    def Route_Taker(self, start_1, start_2, start_3, new_1, new_2, new_3, display, world, planner, num = 0):
 
         new = [new_1, new_2, new_3]
         planner.node_dictionary = {}
@@ -236,7 +236,8 @@ class Robot:
             print(it)
             it += 1
             if not open_heap:
-                        print(f"No route found after {it} tries")
+                        if num:
+                            world.status_menu.menu_list.append(f"No route found after {it} tries")
                         return None
 
             current_f, self.current_node = heapq.heappop(open_heap)
@@ -265,6 +266,6 @@ class Robot:
             path_angles.append(node)
             
         path_angles.reverse()
-        print("path found!")
+        world.status_menu.menu_list.append(f"Path found after {it} tries")
         
         return path_angles

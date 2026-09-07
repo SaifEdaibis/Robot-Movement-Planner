@@ -47,6 +47,8 @@ class Path_Icons:
 class World:
     def __init__(self):
 
+        self.success = True
+
         self.robot = Robot()
         self.angle_controller = Angle_Controller(
             settings.CONTROL_BACKGROUND_X,
@@ -55,24 +57,30 @@ class World:
             settings.BACKGROUND_HEIGHT)
 
         self.path_controller = Angle_Controller(
-                    settings.CONTROL_BACKGROUND_X,
-                    settings.CONTROL_BACKGROUND_Y + 100, 
-                    settings.BACKGROUND_WIDTH * 0.75, 
-                    settings.BACKGROUND_HEIGHT)
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 140, 
+            settings.BACKGROUND_WIDTH * 0.75, 
+            settings.BACKGROUND_HEIGHT)
 
         self.start_angle_display = Angle_Controller(
-                            settings.CONTROL_BACKGROUND_X,
-                            settings.CONTROL_BACKGROUND_Y + 200, 
-                            settings.BACKGROUND_WIDTH * 0.75, 
-                            settings.BACKGROUND_HEIGHT)
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 280, 
+            settings.BACKGROUND_WIDTH * 0.75, 
+            settings.BACKGROUND_HEIGHT)
 
         self.end_angle_display = Angle_Controller(
-                                    settings.CONTROL_BACKGROUND_X,
-                                    settings.CONTROL_BACKGROUND_Y + 300, 
-                                    settings.BACKGROUND_WIDTH * 0.75, 
-                                    settings.BACKGROUND_HEIGHT)
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 420, 
+            settings.BACKGROUND_WIDTH * 0.75, 
+            settings.BACKGROUND_HEIGHT)
+
+        self.status_menu = Angle_Controller(
+            settings.CONTROL_BACKGROUND_X,
+            settings.CONTROL_BACKGROUND_Y + 560, 
+            settings.BACKGROUND_WIDTH, 
+            settings.BACKGROUND_HEIGHT)
         
-        self.angle_controller.panel_maker(self.robot, settings.ANGLE_DISPLAY_PANEL_NUMBER)
+        self.angle_controller.panel_maker(self.robot, settings.ANGLE_DISPLAY_PANEL_NUMBER, row = 0, excepetion=1)
         self.angle_controller.set_labels(self.robot, settings.ANGLE_DISPLAY_PANEL_NUMBER)
 
         self.path_controller.function_panel_maker(self.robot, 2, 1)
@@ -80,6 +88,8 @@ class World:
 
         self.start_angle_display.panel_maker(self.robot, 2, 2)
         self.end_angle_display.panel_maker(self.robot, 2, 3)
+
+        self.status_menu.menu_panel_maker(3)
 
         self.icons = Path_Icons()
 
@@ -111,6 +121,12 @@ class World:
 
             self.arcs.append(Angle_Arc(start_angle, end_angle, center))
 
+            self.delete_zone = pygame.Rect(
+                                    settings.OBSTACLE_START_X,
+                                    settings.OBSTACLE_START_Y + settings.DELETE_SPACING, 
+                                    settings.OBSTACLE_DIMENSIONS, 
+                                    settings.OBSTACLE_DIMENSIONS)
+
     def spawn_obstacles(self):
         test_object = Obstacle()
         test_one, test_two = test_object.collision_check(self)
@@ -118,3 +134,21 @@ class World:
         if test_one is not None and test_two is not None:
             self.obstacles.append(Obstacle())
 
+    def draw_delete_zone(self, screen):
+        self.font = pygame.font.Font(None, 30)
+        pygame.draw.rect(screen, settings.DELETE_ZONE_COLOR, self.delete_zone)
+        top_left = self.delete_zone.topleft
+        center_pos = (top_left[0] + 4,
+                      top_left[1] + settings.OBSTACLE_DIMENSIONS *(5/16))
+
+        self.delete_label = self.font.render(f"DEL", True, settings.TEXT_COLOR)
+        screen.blit(self.delete_label, center_pos)
+
+    def delete_object(self):
+        obj_list = []
+        for obj in range(len(self.obstacles)):
+            if self.obstacles[obj].rect.colliderect(self.delete_zone):
+                obj_list.append(obj)
+
+        for i in reversed(obj_list):
+            del self.obstacles[i]

@@ -69,20 +69,31 @@ class Front_Display:
         world.robot.draw_robot(self.screen)
 
         world.angle_controller.draw_controller(self.screen)
-        world.angle_controller.update_labels(world.robot, self.screen)
+        world.angle_controller.update_labels(world.robot, self.screen, 0)
 
         print(type(world.path_controller), world.path_controller.__class__.__mro__)
         
         world.path_controller.draw_controller(self.screen)
-        world.path_controller.update_function_label(self.screen)
+        world.path_controller.update_function_label(self.screen, 1)
 
         world.start_angle_display.draw_controller(self.screen)
-        world.start_angle_display.update_labels(world.robot, self.screen, world.start_angle_display.label_list)
-
+        
         world.end_angle_display.draw_controller(self.screen)
-        world.end_angle_display.update_labels(world.robot, self.screen, world.end_angle_display.label_list)
+        
+        world.status_menu.draw_controller(self.screen)
 
+        world.draw_delete_zone(self.screen)
+        world.delete_object()
+        
         world.spawn_obstacles()
+
+        world.status_menu.draw_controller(self.screen, 2)
+        world.status_menu.update_menu(self.screen)
+
+        world.end_angle_display.update_labels(world.robot, self.screen, 3, world.end_angle_display.label_list)
+        world.start_angle_display.update_labels(world.robot, self.screen, 2, world.start_angle_display.label_list)
+                    
+
 
         for i in range(settings.JOINT_NUM):
                     if i == 0:
@@ -91,8 +102,7 @@ class Front_Display:
                     else:
                         start_angle = world.robot.joint_angles[i-1] + math.pi
                         raw_diff = (world.robot.joint_angles[i] - start_angle) % (2 * math.pi)
-                        if raw_diff > math.pi:
-                            raw_diff -= 2 * math.pi   # take the shorter way around
+
                         end_angle = start_angle + raw_diff
 
                     if end_angle < start_angle:
@@ -107,7 +117,7 @@ class Front_Display:
                     )
             
                     world.arcs[i].update_arc(start_angle, end_angle, center)
-                    world.arcs[i].draw_arc(self.screen)
+                    world.arcs[i].draw_arc(self.screen, i)
 
         for i in range(len(world.obstacles)):
             world.obstacles[i].draw_obstacle(self.screen)
