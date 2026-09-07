@@ -1,58 +1,78 @@
 # Robot Movement Planner
 
-This is a Python project I built to experiment with robotic arm movement, path planning, and collision detection. The program simulates a three-joint robotic arm in a 2D environment and allows the user to choose where the robot should start and where it should move.
+I built this project to explore how robotic arms can plan and execute movement around obstacles. It is a Python application that simulates a three-joint robotic arm in a 2D environment using Pygame.
 
-The user can place and remove square obstacles in the environment and then choose a target position. The program calculates the joint angles needed to reach the target and uses a custom A* pathfinding algorithm to find a route that avoids the obstacles.
+The program lets the user choose a starting position and a target position for the robot and place or remove square obstacles in the environment. Once a target is selected, the program calculates a set of joint angles that can reach the target and searches for a path between the starting and ending configurations.
 
-The robot uses forward and inverse kinematics to calculate the positions of its joints. The path planner works with different combinations of joint angles rather than simply moving the robot directly toward the target. Each possible configuration is treated as a node, and the A* algorithm searches through these configurations to find a valid route.
+The pathfinding system uses a custom implementation of A*. Instead of searching directly through the robot's position, the algorithm searches through possible combinations of the robot's three joint angles. Each combination is represented as a node, and neighbouring nodes are created by making small changes to the joint angles. The algorithm uses a priority queue to determine which configuration to explore next.
 
-Collision detection is performed while the path is being calculated. If a configuration causes one of the robot's arms or joints to intersect with an obstacle, that configuration is rejected. I also added padding around the robot and obstacles so that the robot does not move directly against an obstacle.
+Before a configuration can be used, the program checks whether the robot would collide with an obstacle. The collision system checks the robot's arms and joints and also uses additional padding so that the robot does not move directly against an obstacle.
 
-One of the main problems I ran into was the amount of time the pathfinding could take when there was no possible route. I improved this by using Python's `heapq` priority queue and adding early exits when the algorithm determines that a route cannot be found.
+The robot's joint positions are calculated using trigonometry and forward kinematics. Inverse kinematics is used to determine suitable joint angles for reaching a selected position. The robot then follows the calculated route by making small changes to its joint angles.
 
-The project is written in Python and uses Pygame for the interface and visualization. I used object-oriented programming to separate the robot, path planner, obstacles, display, controller, and world into different classes and files.
+One of the main problems I encountered was the amount of time the pathfinder could take when there was no possible route. I improved this by using Python's `heapq` module for the priority queue and adding conditions that allow the search to stop when a valid route cannot be found.
+
+The project is split across several Python files so that the robot, pathfinding system, obstacles, display, controls, and environment can be worked on separately. I used object-oriented programming for the main components of the program.
 
 ## Running the project
 
-Clone the repository and enter the project folder.
+The project was developed using Python 3.13 and Pygame 2.6.1.
 
-```bash
+Clone the repository and enter the project folder:
+
+```powershell
 git clone https://github.com/SaifEdaibis/Robot-Movement-Planner.git
 cd Robot-Movement-Planner
 ```
 
-Create a virtual environment and install the required packages.
+Create a virtual environment using Python 3.13:
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+```powershell
+py -3.13 -m venv .venv
 ```
 
-The program can then be started with:
+Activate the environment:
 
-```bash
+```powershell
+.venv\Scripts\activate
+```
+
+Install the required package:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+Run the program:
+
+```powershell
 python main.py
 ```
 
-## Files
+## Project files
 
-`main.py` starts the program and brings the different parts of the project together.
+`main.py` starts the application and connects the different parts of the program.
 
-`robot.py` contains the robotic arm, its joint angles, movement, and kinematics calculations.
+`robot.py` contains the robot, its joints, movement, angle calculations, and parts of the node system used by the pathfinder.
 
-`path.py` contains the path planning system and the A* search.
+`path.py` contains the main path-planning system and handles finding routes between the starting and ending configurations.
 
-`obstacle.py` handles the obstacles used in the environment.
+`obstacle.py` contains the obstacle objects used in the environment.
 
-`world.py` manages the environment in which the robot operates.
+`world.py` manages the environment and the objects within it.
 
-`controller.py` handles user input and controls.
+`controller.py` handles user controls and input.
 
-`display.py` contains the Pygame display functionality.
+`display.py` contains the Pygame display and drawing functionality.
+
+`Arcs.py` contains the classes used to display the robot's joint angle information.
+
+`settings.py` contains configuration values used throughout the project.
+
+`requirements.txt` contains the external Python dependencies required to run the project.
 
 ## What I learned
 
-I built this project to get more comfortable with Python and to apply programming concepts to a robotics problem. While working on it, I learned more about object-oriented programming, Git and GitHub, Pygame, trigonometry, forward and inverse kinematics, A* pathfinding, and collision detection.
+This project was mainly an exercise in applying programming to a robotics problem. While building it, I learned more about object-oriented Python, Pygame, Git and GitHub, trigonometry, forward and inverse kinematics, A* pathfinding, collision detection, and working with a larger codebase.
 
-The project also gave me experience debugging a larger codebase and dealing with problems where an algorithm works in some situations but becomes extremely slow or fails when no valid solution exists.
+A large part of the project was also figuring out how to debug and improve an algorithm when it worked for simple cases but became slow or failed when a solution did not exist.
